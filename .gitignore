@@ -1,0 +1,44 @@
+# Local music and test samples
+samples/
+test-data/
+*.kgm
+*.kgma
+*.kgg
+*.vpr
+*.ncm
+*.qmc*
+*.mgg*
+*.mflac*
+
+# Decoded audio test outputs
+decoded/
+test-output/
+*.decoded.*
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+*.opus
+
+# Local temporary files, outputs, and logs
+tmp/
+temp/
+out/
+output/
+logs/
+*.log
+
+# Wails, Go, and Node build artifacts
+build/
+bin/
+dist/
+node_modules/
+wailsjs/
+*.exe
+
+# IDE-local files
+.idea/
+.vscode/
+*.user
+*.suo
