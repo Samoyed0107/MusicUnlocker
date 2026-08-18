@@ -26,8 +26,12 @@ func TargetKey(request Request) (string, error) {
 	if request.InputPath == "" || request.OutputDir == "" {
 		return "", errors.New("input path and output directory are required")
 	}
-	return filepath.Join(request.OutputDir, cleanBase(filepath.Base(request.InputPath), request.Probe)), nil
+	return filepath.Join(request.OutputDir, CleanStem(filepath.Base(request.InputPath), request.Probe)), nil
 }
+
+// CleanStem returns the existing source-name-compatible stem without changing
+// the encrypted wrapper cleanup rules used by the output planner.
+func CleanStem(name string, result probe.Result) string { return cleanBase(name, result) }
 
 // Plan returns a clean, conservative destination name. It removes only
 // recognised encrypted wrappers and their terminal copy counters.

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"musicunlocker/internal/batch"
+	"musicunlocker/internal/naming"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -20,6 +21,8 @@ func run(args []string, out, errOut io.Writer) int {
 	outDir := flags.String("out-dir", "", "explicit output directory")
 	jsonOutput := flags.Bool("json", false, "write the structured summary as JSON")
 	jobs := flags.Int("jobs", 1, "maximum concurrent decode workers")
+	nameMode := flags.String("name-mode", "source", "source, title, artist-title, title-artist, track-title, artist-album-track-title")
+	nameTemplate := flags.String("name-template", "", "custom output-name template")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -27,7 +30,12 @@ func run(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "usage: musicbatch --out-dir <dir> [--jobs N] [--json] <file-or-directory> [more...]")
 		return 2
 	}
-	summary, err := (batch.Engine{}).Run(context.Background(), batch.Request{Inputs: flags.Args(), OutputRoot: *outDir, MaxWorkers: *jobs})
+	config, err := parseNaming(*nameMode, *nameTemplate)
+	if err != nil {
+		fmt.Fprintln(errOut, err)
+		return 2
+	}
+	summary, err := (batch.Engine{}).Run(context.Background(), batch.Request{Inputs: flags.Args(), OutputRoot: *outDir, MaxWorkers: *jobs, Naming: config})
 	if err != nil {
 		fmt.Fprintln(errOut, err)
 		return 2
@@ -50,6 +58,30 @@ func run(args []string, out, errOut io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+func parseNaming(mode, template string) (naming.Config, error) {
+	if template != "" {
+		return naming.Config{Mode: naming.Custom, CustomTemplate: template}, nil
+	}
+	var m naming.Mode
+	switch mode {
+	case "", "source":
+		m = naming.KeepSource
+	case "title":
+		m = naming.Title
+	case "artist-title":
+		m = naming.ArtistTitle
+	case "title-artist":
+		m = naming.TitleArtist
+	case "track-title":
+		m = naming.TrackTitle
+	case "artist-album-track-title":
+		m = naming.ArtistAlbumTrackTitle
+	default:
+		return naming.Config{}, fmt.Errorf("unknown --name-mode %q", mode)
+	}
+	return naming.Config{Mode: m}, naming.Validate(naming.Config{Mode: m})
 }
 
 func printResult(out io.Writer, r batch.Result) {

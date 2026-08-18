@@ -6,7 +6,8 @@
 | 5B | `COMPLETE` | Input queue, batch lifecycle, and native in-window drop. |
 | 5C | `COMPLETE` | Preview service and GUI playback; real NCM/MP3 validation recorded. |
 | 5D | `IMPLEMENTATION_COMPLETE` / `REAL_MANUAL_VALIDATION_PENDING` | Windows argv launch, drag-to-EXE path delivery, and Wails single-instance handoff. |
-| 5E | `PLANNED` | Metadata-based decoded-output naming modes and custom templates. |
+| 5E1 | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Offline metadata-aware decoded-output naming core and deterministic finalization. |
+| 5E2 | `PLANNED` | GUI naming controls and preference integration. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later

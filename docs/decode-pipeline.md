@@ -3,7 +3,7 @@
 ## Pipeline
 
 ```text
-Probe → Resolver → Decoder → Decrypted Stream Sniff → Output Planner → Atomic Writer
+Probe → Resolver → Decoder → Decrypted Stream Sniff → Temporary Writer → Offline Metadata → Naming → Ordered Atomic Commit
 ```
 
 The core remains independent from the CLI and GUI. Content evidence has
@@ -65,7 +65,7 @@ Ordinary title parentheses remain intact. Existing targets return
 - output is copied to a temporary file and atomically renamed;
 - no transcoding is performed;
 - NCM, KWM, QMC, TM, Xiami, and Ximalaya adapters call only local upstream validation and stream operations;
-- metadata, cover-art, QQMusic processes, MMKV, key acquisition, and network APIs are not used.
+- metadata naming reads only bounded local tags from decoded temporary output; cover-art, lyrics, key acquisition, and network APIs are not used.
 
 ## Developer CLI
 

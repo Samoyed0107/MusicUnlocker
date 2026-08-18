@@ -8,13 +8,16 @@
 - Stage 5D: Windows launch arguments and Wails single-instance handoff are
   implemented; physical drag-to-EXE validation is still pending.
 
-## Planned: Stage 5E
+## Completed: Stage 5E1
 
 Add offline metadata-based decoded-output naming. Planned presets include
 cleaned source name, Title, Artist - Title, Title - Artist, and Track - Title,
 plus a sanitized custom template using placeholders such as `{title}`, `{artist}`,
 `{album}`, `{albumartist}`, `{track}`, `{disc}`, `{year}`, and `{source}`.
 
-This is `PLANNED / NOT IMPLEMENTED`. The decoded extension must continue to be
-determined by the actual decoded audio format; no metadata extraction,
-template engine, or naming behavior is part of Stage 5D.
+Stage 5E1 implements the offline core, sanitization, templates, fallback, and
+queue-ordered post-decode finalization. GUI controls are not exposed yet.
+
+## Planned: Stage 5E2
+
+Expose naming modes and custom templates through GUI preferences and controls.

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"musicunlocker/internal/decode"
+	"musicunlocker/internal/naming"
 	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
 )
@@ -38,26 +39,31 @@ const (
 )
 
 type Request struct {
-	Inputs     []string `json:"inputs"`
-	OutputRoot string   `json:"outputRoot"`
-	MaxWorkers int      `json:"maxWorkers"`
+	Inputs     []string      `json:"inputs"`
+	OutputRoot string        `json:"outputRoot"`
+	MaxWorkers int           `json:"maxWorkers"`
+	Naming     naming.Config `json:"naming,omitempty"`
 }
 
 type Result struct {
-	Index              int    `json:"index"`
-	SourcePath         string `json:"sourcePath"`
-	SourceRoot         string `json:"sourceRoot,omitempty"`
-	RelativePath       string `json:"relativePath,omitempty"`
-	OutputPath         string `json:"outputPath,omitempty"`
-	DetectedFamily     string `json:"detectedFamily,omitempty"`
-	Variant            string `json:"variant,omitempty"`
-	DecodedAudioFormat string `json:"decodedAudioFormat,omitempty"`
-	BytesWritten       int64  `json:"bytesWritten"`
-	SourceBytes        int64  `json:"sourceBytes,omitempty"`
-	SourceBytesKnown   bool   `json:"sourceBytesKnown,omitempty"`
-	Status             Status `json:"status"`
-	ErrorCode          string `json:"errorCode,omitempty"`
-	ErrorDetail        string `json:"errorDetail,omitempty"`
+	Index                int    `json:"index"`
+	SourcePath           string `json:"sourcePath"`
+	SourceRoot           string `json:"sourceRoot,omitempty"`
+	RelativePath         string `json:"relativePath,omitempty"`
+	OutputPath           string `json:"outputPath,omitempty"`
+	DetectedFamily       string `json:"detectedFamily,omitempty"`
+	Variant              string `json:"variant,omitempty"`
+	DecodedAudioFormat   string `json:"decodedAudioFormat,omitempty"`
+	BytesWritten         int64  `json:"bytesWritten"`
+	SourceBytes          int64  `json:"sourceBytes,omitempty"`
+	SourceBytesKnown     bool   `json:"sourceBytesKnown,omitempty"`
+	Status               Status `json:"status"`
+	ErrorCode            string `json:"errorCode,omitempty"`
+	ErrorDetail          string `json:"errorDetail,omitempty"`
+	RequestedNamingMode  string `json:"requestedNamingMode,omitempty"`
+	ActualNamingMode     string `json:"actualNamingMode,omitempty"`
+	NamingFallback       bool   `json:"namingFallback,omitempty"`
+	NamingFallbackReason string `json:"namingFallbackReason,omitempty"`
 }
 
 type Summary struct {
@@ -138,8 +144,11 @@ func (e Engine) Run(ctx context.Context, req Request) (Summary, error) {
 		item.result.Index = indexOfFile(items, item.path)
 		e.emit(eventFor(EventDiscovered, item.result))
 	}
-	if e.Decoder == nil {
-		e.Decoder = decode.DecodeFile
+	if req.Naming.Mode == "" {
+		req.Naming.Mode = naming.KeepSource
+	}
+	if err := naming.Validate(req.Naming); err != nil {
+		return Summary{}, err
 	}
 	workers := req.MaxWorkers
 	if workers == 0 {
@@ -186,7 +195,7 @@ func (e Engine) Run(ctx context.Context, req Request) (Summary, error) {
 		item.targetKey, _ = outputplan.TargetKey(outputplan.Request{InputPath: item.file.path, OutputDir: filepath.Join(outputRoot, item.file.outputRelativeDir), Probe: p})
 	}
 	if ctx.Err() == nil {
-		runGroups(ctx, e, items, workers, outputRoot)
+		runGroups(ctx, e, items, workers, outputRoot, req.Naming)
 	} else {
 		for _, item := range items {
 			if item.file != nil && item.runnable && item.result.Status == "" {
@@ -222,6 +231,46 @@ type workGroup struct {
 	items []*queueItem
 }
 
+// commitGate makes metadata-derived final path ownership follow queue index,
+// while decode and metadata work remain concurrent.
+type commitGate struct {
+	mu    sync.Mutex
+	order []int
+	pos   int
+}
+
+func newCommitGate(items []*queueItem) *commitGate {
+	g := &commitGate{}
+	for _, i := range items {
+		if i.runnable {
+			g.order = append(g.order, i.result.Index)
+		}
+	}
+	sort.Ints(g.order)
+	return g
+}
+func (g *commitGate) wait(ctx context.Context, index int) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		g.mu.Lock()
+		ready := g.pos >= len(g.order) || g.order[g.pos] == index
+		g.mu.Unlock()
+		if ready {
+			return nil
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+func (g *commitGate) complete(index int) {
+	g.mu.Lock()
+	if g.pos < len(g.order) && g.order[g.pos] == index {
+		g.pos++
+	}
+	g.mu.Unlock()
+}
+
 func indexOfFile(items []*queueItem, path string) int {
 	for _, item := range items {
 		if item.file != nil && item.file.path == path {
@@ -243,7 +292,7 @@ func finishCancelled(e Engine, item *queueItem) {
 	e.emit(eventFor(EventFinished, item.result))
 }
 
-func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string) {
+func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string, config naming.Config) {
 	groupsByKey := map[string]*workGroup{}
 	var groups []*workGroup
 	for _, item := range items {
@@ -265,6 +314,7 @@ func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int
 	if maxWorkers > len(groups) {
 		maxWorkers = len(groups)
 	}
+	gate := newCommitGate(items)
 	jobs := make(chan *workGroup)
 	var wg sync.WaitGroup
 	for i := 0; i < maxWorkers; i++ {
@@ -272,7 +322,7 @@ func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int
 		go func() {
 			defer wg.Done()
 			for group := range jobs {
-				processGroup(ctx, e, group, outputRoot)
+				processGroup(ctx, e, group, outputRoot, config, gate)
 			}
 		}()
 	}
@@ -298,11 +348,14 @@ dispatchLoop:
 	}
 }
 
-func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string) {
+func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string, config naming.Config, gate *commitGate) {
 	for position, item := range group.items {
 		if ctx.Err() != nil {
 			for _, remaining := range group.items[position:] {
 				finishCancelled(e, remaining)
+				if config.Mode != naming.KeepSource {
+					gate.complete(remaining.result.Index)
+				}
 			}
 			return
 		}
@@ -313,8 +366,33 @@ func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot st
 			item.result.BytesWritten = p.BytesWritten
 			e.emit(eventFor(EventProgress, item.result))
 		}
-		decoded, decodeErr := e.Decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress})
+		var decoded decode.Result
+		var decodeErr error
+		if e.Decoder == nil && config.Mode != naming.KeepSource {
+			prepared, prepareErr := decode.PrepareFile(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config})
+			if prepareErr == nil {
+				if waitErr := gate.wait(ctx, item.result.Index); waitErr != nil {
+					prepared.Abort()
+					decoded, decodeErr = prepared.Result, waitErr
+					gate.complete(item.result.Index)
+				} else {
+					decoded, decodeErr = decode.FinalizePrepared(&prepared)
+					gate.complete(item.result.Index)
+				}
+			} else {
+				decoded, decodeErr = prepared.Result, prepareErr
+				gate.complete(item.result.Index)
+			}
+		} else {
+			decoder := e.Decoder
+			if decoder == nil {
+				decoder = decode.DecodeFile
+			}
+			decoded, decodeErr = decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config})
+		}
 		item.result.OutputPath, item.result.DecodedAudioFormat, item.result.BytesWritten = decoded.OutputPath, decoded.DecodedFormat, decoded.BytesWritten
+		item.result.RequestedNamingMode, item.result.ActualNamingMode = string(decoded.Naming.RequestedMode), string(decoded.Naming.UsedMode)
+		item.result.NamingFallback, item.result.NamingFallbackReason = decoded.Naming.Fallback, decoded.Naming.FallbackReason
 		if decodeErr != nil {
 			item.result.Status, item.result.ErrorCode, item.result.ErrorDetail = mapError(decodeErr)
 			if errors.Is(decodeErr, context.Canceled) || errors.Is(decodeErr, context.DeadlineExceeded) {

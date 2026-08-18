@@ -39,3 +39,6 @@
 - Preview URLs use authorized opaque in-memory IDs; frontend calls cannot provide arbitrary local paths.
 - Preview failure never changes a decoder result status, and preview must not send complete audio through Wails/base64 IPC.
 - Major development stages end with project-status/roadmap synchronization; product-requirements changes are made only when requirements change, and real-validation changes only when real validation occurs.
+- Decoded audio metadata is read offline only after the decoded temporary file is closed; metadata naming failure falls back to the cleaned source stem without invalidating a successful decode.
+- Naming templates never control the decoded extension or create directories; final extensions remain authoritative from decoded-content sniffing.
+- Metadata-derived destinations are committed in deterministic queue-index order after concurrent preparation, with uncommitted temporary files cleaned on cancellation or conflict.
