@@ -1,9 +1,37 @@
 package upstream
 
 import (
+	"bytes"
+	"encoding/binary"
 	"reflect"
 	"testing"
 )
+
+func syntheticKGMV3() []byte {
+	b := make([]byte, 60+4)
+	copy(b, []byte{0x7c, 0xd5, 0x32, 0xeb, 0x86, 0x02, 0x7f, 0x4b, 0xa8, 0xaf, 0xa6, 0x8e, 0x0f, 0xff, 0x99, 0x14})
+	binary.LittleEndian.PutUint32(b[0x10:], 60)
+	binary.LittleEndian.PutUint32(b[0x14:], 3)
+	binary.LittleEndian.PutUint32(b[0x18:], 1)
+	return b
+}
+
+func TestDecodeKGMRejectsMalformedInput(t *testing.T) {
+	if _, err := DecodeKGM(bytes.NewReader([]byte("not kgm")), "input.bin"); err == nil {
+		t.Fatal("malformed KGM was accepted")
+	}
+}
+
+func TestDecodeKGMV3UsesCanonicalAdapter(t *testing.T) {
+	stream, err := DecodeKGM(bytes.NewReader(syntheticKGMV3()), "input.with-unusual-name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 4)
+	if _, err := stream.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestCandidateSuffixesUsesUpstreamFilenameRegistrations(t *testing.T) {
 	tests := []struct {

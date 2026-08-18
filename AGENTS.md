@@ -17,3 +17,7 @@
 - Format probing must use bounded I/O and preserve the reader position.
 - Probe code must not perform network activity; content evidence outranks filename hints.
 - Malformed files must never cause unbounded allocation or a panic.
+- Never guess a decoded audio format or default an unknown decrypted stream to MP3.
+- Decode outputs must be written atomically; source audio is never deleted by default.
+- The decoding core remains independent from any GUI.
+- External-key and database requirements must be represented as typed states or errors.

@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"musicunlocker/internal/audiofmt"
 	"musicunlocker/internal/decoder/upstream"
 )
 
@@ -156,24 +157,8 @@ func detectContainer(result *Result, b []byte) bool {
 }
 
 func detectRaw(result *Result, b []byte) bool {
-	format := ""
-	switch {
-	case bytes.HasPrefix(b, []byte("fLaC")):
-		format = "flac"
-	case bytes.HasPrefix(b, []byte("OggS")):
-		format = "ogg"
-	case len(b) >= 12 && bytes.Equal(b[:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WAVE")):
-		format = "wav"
-	case bytes.HasPrefix(b, []byte("ID3")):
-		format = "mp3"
-	case len(b) >= 16 && bytes.Equal(b[4:8], []byte("ftyp")) && binary.BigEndian.Uint32(b[:4]) >= 16:
-		format = "mp4"
-		brand := string(b[8:12])
-		if brand == "M4A " || (len(b) >= 20 && bytes.Contains(b[16:min(len(b), 4096)], []byte("M4A "))) {
-			format = "m4a"
-		}
-	}
-	if format == "" {
+	format, ok := audiofmt.Detect(b)
+	if !ok {
 		return false
 	}
 	result.Family, result.RawAudioFormat, result.Confidence = FamilyRaw, format, ConfidenceConfirmed
