@@ -1,0 +1,15 @@
+# Project status
+
+| Stage | Status | Scope |
+| --- | --- | --- |
+| 5A | `COMPLETE` | Wails GUI shell and application facade. |
+| 5B | `COMPLETE` | Input queue, batch lifecycle, and native in-window drop. |
+| 5C | `COMPLETE` | Preview service and GUI playback; real NCM/MP3 validation recorded. |
+| 5D | `IMPLEMENTATION_COMPLETE` / `REAL_MANUAL_VALIDATION_PENDING` | Windows argv launch, drag-to-EXE path delivery, and Wails single-instance handoff. |
+| 5E | `PLANNED` | Metadata-based decoded-output naming modes and custom templates. |
+
+Stage 5D accepts existing files and directories passed as process arguments,
+retains initial arguments until the frontend retrieves them, and forwards later
+launches through Wails `SingleInstanceLock`. Launches never start a batch.
+Physical Explorer drag-to-EXE acceptance remains pending unless performed on a
+real Windows installation.

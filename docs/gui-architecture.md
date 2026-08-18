@@ -17,8 +17,8 @@ and scheduling remain in Go.
 
 The facade exposes `GetAppInfo`, `SelectFiles`, `SelectFolder`,
 `SelectOutputFolder`, `DescribeInputs`, `SuggestOutputFolder`,
-`GetPreferences`, `SavePreferences`, `OpenOutputFolder`, `StartBatch`, and
-`CancelBatch`. `BatchStartRequest`, `QueueItem`, `ProgressEvent`,
+`GetPreferences`, `SavePreferences`, `OpenOutputFolder`, `StartBatch`,
+`CancelBatch`, and `GetPendingLaunchPaths`. `BatchStartRequest`, `QueueItem`, `ProgressEvent`,
 `BatchSnapshot`, and `BatchCompleteEvent` are the stable JSON-shaped contract.
 
 Each start receives a monotonically increasing `batchId`. Every transient
@@ -35,6 +35,7 @@ Events are:
 - `musicunlocker:batch:progress`
 - `musicunlocker:batch:finished`
 - `musicunlocker:batch:complete`
+- `musicunlocker:launch:paths`
 
 The first four carry a batch ID and item data (progress also carries byte
 counters). The complete event carries the final ordered result list and
@@ -67,7 +68,11 @@ Windows case and slash differences are treated conservatively as duplicates.
 Folders remain one row until discovery begins, and the bounded queue displays
 the type, basename, and shortened full path. Selection and drop controls are
 locked while a batch is running or cancelling; drops during that time are
-ignored with an inline message.
+ignored with an inline message. Paths supplied to the executable use the same
+queue helper and are never started automatically. Initial process arguments are
+retained until `GetPendingLaunchPaths` is called; later launches use Wails
+`SingleInstanceLock` and are deferred while a batch is running or cancelling,
+then flushed after authoritative completion.
 
 When auto-suggestion is enabled and output has not been explicitly selected,
 one file suggests `<source directory>\Unlocked`; one directory suggests
@@ -119,12 +124,12 @@ in this stage.
 
 ## Current limitations
 
-There is no pause/resume, drag-to-EXE support, overwrite mode, source
-deletion, external-key acquisition, KGG database loading, metadata/network
-access, FFmpeg integration, tray support, installer packaging, or explicit
-theme selector. Native OS drag/drop still requires manual verification in a
-real Wails window; automated tests do not perform WebView E2E or decode real
-music.
+There is no pause/resume, overwrite mode, source deletion, external-key
+acquisition, KGG database loading, metadata/network access, FFmpeg integration,
+tray support, installer packaging, file association, or explicit theme
+selector. Physical Explorer drag-to-EXE still requires manual verification in
+a real Windows installation; automated tests do not perform WebView E2E or
+decode real music.
 
 ## Stage 5C audio preview
 

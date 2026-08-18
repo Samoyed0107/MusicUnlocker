@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"os"
 	"os/exec"
 
 	"github.com/wailsapp/wails/v2"
@@ -52,6 +53,8 @@ type App struct {
 	ctx    context.Context
 }
 
+const musicUnlockerUniqueID = "7b6d4d6e-5d4d-4b6e-9f52-4a9f2a1c7e31"
+
 func newWailsApp() *App { return &App{} }
 func (w *App) startup(ctx context.Context) {
 	w.ctx = ctx
@@ -67,9 +70,10 @@ func (w *App) SuggestOutputFolder(inputs []string) (string, error) {
 func (w *App) DescribeInputs(inputs []string) []app.SelectedInput {
 	return w.facade.DescribeInputs(inputs)
 }
-func (w *App) GetPreferences() (app.Preferences, error) { return w.facade.GetPreferences() }
-func (w *App) SavePreferences(p app.Preferences) error  { return w.facade.SavePreferences(p) }
-func (w *App) OpenOutputFolder(path string) error       { return w.facade.OpenOutputFolder(path) }
+func (w *App) GetPreferences() (app.Preferences, error)     { return w.facade.GetPreferences() }
+func (w *App) SavePreferences(p app.Preferences) error      { return w.facade.SavePreferences(p) }
+func (w *App) OpenOutputFolder(path string) error           { return w.facade.OpenOutputFolder(path) }
+func (w *App) GetPendingLaunchPaths() *app.LaunchPathsEvent { return w.facade.GetPendingLaunchPaths() }
 func (w *App) StartBatch(req app.BatchStartRequest) (app.BatchStartResponse, error) {
 	return w.facade.StartBatch(req)
 }
@@ -83,9 +87,36 @@ func (w *App) shutdown(ctx context.Context) {
 	}
 }
 
+func (w *App) receiveLaunchArgs(args []string, workingDirectory string, source app.LaunchSource) {
+	parsed := app.ParseLaunchPaths(args, workingDirectory)
+	if len(parsed.Paths) == 0 {
+		return
+	}
+	w.facade.ReceiveLaunchPaths(w.facadeLaunchEvent(parsed.Paths, source))
+}
+
+func (w *App) facadeLaunchEvent(paths []string, source app.LaunchSource) app.LaunchPathsEvent {
+	return app.LaunchPathsEvent{Paths: paths, Source: source}
+}
+
 func main() {
 	application := newWailsApp()
-	if err := wails.Run(&options.App{Title: "MusicUnlocker", Width: 1100, Height: 760, MinWidth: 900, MinHeight: 600, AssetServer: &assetserver.Options{Assets: assets}, BackgroundColour: &options.RGBA{R: 248, G: 250, B: 252, A: 1}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, OnStartup: application.startup, OnShutdown: application.shutdown, Bind: []interface{}{application}}); err != nil {
+	workingDirectory, _ := os.Getwd()
+	initialArgs := append([]string(nil), os.Args[1:]...)
+	appOptions := &options.App{Title: "MusicUnlocker", Width: 1100, Height: 760, MinWidth: 900, MinHeight: 600, AssetServer: &assetserver.Options{Assets: assets}, BackgroundColour: &options.RGBA{R: 248, G: 250, B: 252, A: 1}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, OnStartup: func(ctx context.Context) {
+		application.startup(ctx)
+		application.receiveLaunchArgs(initialArgs, workingDirectory, app.LaunchSourceInitial)
+	}, OnShutdown: application.shutdown, Bind: []interface{}{application}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: musicUnlockerUniqueID, OnSecondInstanceLaunch: func(data options.SecondInstanceData) {
+		if application.facade == nil {
+			return
+		}
+		application.receiveLaunchArgs(data.Args, data.WorkingDirectory, app.LaunchSourceSecond)
+		if application.ctx != nil {
+			runtime.WindowUnminimise(application.ctx)
+			runtime.WindowShow(application.ctx)
+		}
+	}}}
+	if err := wails.Run(appOptions); err != nil {
 		println("Error:", err.Error())
 	}
 }

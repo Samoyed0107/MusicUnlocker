@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { backend, BatchCompleteEvent, BatchEvent, dedupePaths, Preferences, QueueItem, SelectedInput, sortItems } from './api'
+import { backend, BatchCompleteEvent, BatchEvent, dedupePaths, LaunchPathsEvent, normalizePath, Preferences, QueueItem, SelectedInput, sortItems } from './api'
 import { DropZone } from './components/DropZone'
 import { InputQueue } from './components/InputQueue'
 import { ProcessingTable } from './components/ProcessingTable'
 import { AudioPreview } from './components/AudioPreview'
 import { Summary } from './components/Summary'
 import { useFileDrop } from './hooks/useFileDrop'
+import { useLaunchPaths } from './hooks/useLaunchPaths'
 import './style.css'
 
 const eventNames=['musicunlocker:batch:discovered','musicunlocker:batch:started','musicunlocker:batch:progress','musicunlocker:batch:finished','musicunlocker:batch:complete']
@@ -15,11 +16,13 @@ export default function App() {
   const [workers,setWorkers]=useState(1); const [autoSuggest,setAutoSuggest]=useState(true); const [prefsLoaded,setPrefsLoaded]=useState(false); const [items,setItems]=useState<QueueItem[]>([])
   const [running,setRunning]=useState(false); const [cancelling,setCancelling]=useState(false); const [complete,setComplete]=useState<BatchCompleteEvent|null>(null); const [selectedPreview,setSelectedPreview]=useState<QueueItem>(); const [notice,setNotice]=useState(''); const [filter,setFilter]=useState('all'); const activeId=useRef<number|null>(null)
   const locked=running||cancelling
-  const addPaths=useCallback(async(paths:string[])=>{const unique=dedupePaths(paths);if(!unique.length)return;try{const described:SelectedInput[]=await api.DescribeInputs(unique);setInputs(prev=>{const existing=new Set(prev.map(x=>x.path.toLowerCase()));const next=[...prev,...described.filter(x=>!existing.has(x.path.toLowerCase()))];if(next.length!==prev.length){setItems([]);setComplete(null)}return next})}catch(e:any){setNotice(`Could not add the selected paths: ${String(e)}`)}},[api])
+  const addPaths=useCallback(async(paths:string[])=>{const unique=dedupePaths(paths);if(!unique.length)return;try{const described:SelectedInput[]=await api.DescribeInputs(unique);setInputs(prev=>{const existing=new Set(prev.map(x=>normalizePath(x.path)));return [...prev,...described.filter(x=>!existing.has(normalizePath(x.path)))]})}catch(e:any){setNotice(`Could not add the selected paths: ${String(e)}`)}},[api])
   const addFiles=async()=>{try{await addPaths(await api.SelectFiles())}catch(e:any){setNotice(String(e))}}
   const addFolder=async()=>{try{const path=await api.SelectFolder();if(path)await addPaths([path])}catch(e:any){setNotice(String(e))}}
   const ignoredDrop=useCallback(()=>setNotice('Wait for the current batch to finish before adding more inputs.'),[])
   useFileDrop(locked,addPaths,ignoredDrop)
+  const onLaunchPaths=useCallback((event:LaunchPathsEvent)=>{const count=event.paths.length;if(event.deferred){setNotice(`${count} item${count===1?'':'s'} received. They will be added after the current batch finishes.`);return} addPaths(event.paths).then(()=>setNotice(`${count} item${count===1?'':'s'} added from Windows.`))},[addPaths])
+  useLaunchPaths(onLaunchPaths)
   useEffect(()=>{const update=(event:BatchEvent)=>{if(activeId.current===null||event.batchId!==activeId.current)return;setItems(prev=>sortItems([...prev.filter(x=>x.index!==event.item.index),event.item]))};const finish=(event:BatchCompleteEvent)=>{if(activeId.current===null||event.batchId!==activeId.current)return;setItems(sortItems(event.snapshot.results));setComplete(event);setRunning(false);setCancelling(false)};eventNames.slice(0,4).forEach(name=>window.runtime?.EventsOn?.(name,update));window.runtime?.EventsOn?.(eventNames[4],finish);return()=>{window.runtime?.EventsOff?.(...eventNames)}},[])
   useEffect(()=>{api.GetPreferences?.().then((p:Preferences)=>{if(p?.maxWorkers)setWorkers(p.maxWorkers);setAutoSuggest(p?.autoSuggestOutput??true);if(p?.theme)document.documentElement.dataset.theme=p.theme}).catch(()=>{}).finally(()=>setPrefsLoaded(true))},[api])
   useEffect(()=>{if(prefsLoaded&&!locked)api.SavePreferences?.({maxWorkers:workers,theme:(document.documentElement.dataset.theme as Preferences['theme'])||'system',autoSuggestOutput:autoSuggest}).catch(()=>{})},[workers,autoSuggest,locked,api,prefsLoaded])

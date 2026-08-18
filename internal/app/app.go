@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	EventDiscovered = "musicunlocker:batch:discovered"
-	EventStarted    = "musicunlocker:batch:started"
-	EventProgress   = "musicunlocker:batch:progress"
-	EventFinished   = "musicunlocker:batch:finished"
-	EventComplete   = "musicunlocker:batch:complete"
+	EventDiscovered  = "musicunlocker:batch:discovered"
+	EventStarted     = "musicunlocker:batch:started"
+	EventProgress    = "musicunlocker:batch:progress"
+	EventFinished    = "musicunlocker:batch:finished"
+	EventComplete    = "musicunlocker:batch:complete"
+	EventLaunchPaths = "musicunlocker:launch:paths"
 )
 
 var (
@@ -127,6 +128,34 @@ type Application struct {
 	previewErr  error
 	latestID    uint64
 	latest      *BatchSnapshot
+	launchInbox LaunchInbox
+}
+
+func (a *Application) ReceiveLaunchPaths(event LaunchPathsEvent) {
+	if len(event.Paths) == 0 {
+		return
+	}
+	if event.RequestID == "" {
+		event = a.launchInbox.NewEvent(event.Paths, event.Source)
+	}
+	a.mu.Lock()
+	running := a.running
+	a.mu.Unlock()
+	if event.Source == LaunchSourceInitial {
+		a.launchInbox.RetainInitial(event)
+		return
+	}
+	if running {
+		a.launchInbox.Defer(event)
+		event.Deferred = true
+		a.sink.Emit(EventLaunchPaths, event)
+		return
+	}
+	a.sink.Emit(EventLaunchPaths, event)
+}
+
+func (a *Application) GetPendingLaunchPaths() *LaunchPathsEvent {
+	return a.launchInbox.ConsumeInitial()
 }
 
 func New(engine EngineRunner, sink EventSink, dialogs Dialogs) *Application {
@@ -249,6 +278,9 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 		a.running, a.cancel = false, nil
 	}
 	a.mu.Unlock()
+	for _, event := range a.launchInbox.FlushDeferred() {
+		a.sink.Emit(EventLaunchPaths, event)
+	}
 }
 
 func (a *Application) GetPreviewURL(batchID uint64, index int) (PreviewResponse, error) {
