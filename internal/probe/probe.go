@@ -27,12 +27,15 @@ const (
 type Family string
 
 const (
-	FamilyUnknown Family = "unknown"
-	FamilyRaw     Family = "raw"
-	FamilyKugou   Family = "kugou"
-	FamilyNetease Family = "netease"
-	FamilyKuwo    Family = "kuwo"
-	FamilyQMC     Family = "qmc"
+	FamilyUnknown  Family = "unknown"
+	FamilyRaw      Family = "raw"
+	FamilyKugou    Family = "kugou"
+	FamilyNetease  Family = "netease"
+	FamilyKuwo     Family = "kuwo"
+	FamilyQMC      Family = "qmc"
+	FamilyTM       Family = "tm"
+	FamilyXiami    Family = "xiami"
+	FamilyXimalaya Family = "ximalaya"
 )
 
 type Confidence string
@@ -145,6 +148,10 @@ func detectContainer(result *Result, b []byte) bool {
 		confirm(result, FamilyNetease, "NCM", "CTENFDAM magic")
 	case len(b) >= 16 && (bytes.Equal(b[:16], []byte("yeelion-kuwo-tme")) || bytes.Equal(b[:16], []byte("yeelion-kuwo\x00\x00\x00\x00"))):
 		confirm(result, FamilyKuwo, "KWM", "16-byte KWM magic")
+	case bytes.HasPrefix(b, []byte("QQMU")):
+		confirm(result, FamilyTM, "TM", "QQ Music TM header")
+	case len(b) >= 16 && bytes.Equal(b[:4], []byte("ifmt")) && xiamiAudioType(b[4:8]) && bytes.Equal(b[8:12], []byte{0xfe, 0xfe, 0xfe, 0xfe}):
+		confirm(result, FamilyXiami, "XM", "Xiami ifmt/FEFE header")
 	default:
 		return false
 	}
@@ -154,6 +161,15 @@ func detectContainer(result *Result, b []byte) bool {
 		result.CryptoSlot = binary.LittleEndian.Uint32(b[0x18:0x1c])
 	}
 	return true
+}
+
+func xiamiAudioType(b []byte) bool {
+	switch string(b) {
+	case " WAV", "FLAC", " MP3", " A4M":
+		return true
+	default:
+		return false
+	}
 }
 
 func detectRaw(result *Result, b []byte) bool {

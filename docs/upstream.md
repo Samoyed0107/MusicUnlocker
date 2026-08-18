@@ -15,7 +15,10 @@ The fixed version makes the reviewed decoder surface reproducible. Upgrades must
 
 MusicUnlocker currently consumes the upstream algorithms as a Go dependency through `internal/decoder/upstream`. Decoder implementation files are not copied into this repository, and future MusicUnlocker packages should not import the upstream module directly.
 
-The adapter currently exposes filename candidate discovery only. It does not validate binary content, perform decoding, write outputs, fetch metadata, or add networking behavior.
+The adapter exposes filename candidate discovery and explicit family adapters.
+Application packages never construct upstream `DecoderParams` directly. The
+adapters call only `Validate` and `Read`; metadata, cover, and network APIs are
+not part of the decode path.
 
 ## Decoder families
 
@@ -51,7 +54,17 @@ These registrations are filename/suffix matching only. They are not binary forma
 
 - KGM includes v3 and v5 code. v5 uses an external KGG database path to obtain an audio key.
 - QMC includes static, map, and RC4-related cipher paths; QMC parsing also contains QTag, STag, and MusicEx handling.
-- QMC contains MMKV-related loaders for platform-specific legacy key sources.
+- QMC contains MMKV-related loaders for platform-specific legacy key sources;
+  MusicUnlocker does not invoke them. Static, embedded-key, and QTag
+  validation can proceed offline, while STag and keyless MusicEx remain
+  externally blocked.
+- TM validates the `QQMU` header and repairs it to an M4A-style `ftyp` header,
+  or safely passes through ordinary audio for its distinctive TM suffixes.
+- Xiami validates `ifmt`, a supported four-byte type, and `FEFEFEFE` at
+  offsets `0x08`-`0x0B`.
+- Ximalaya has no reliable simple plaintext magic; `.x2m`, `.x3m`, and
+  ambiguous `.xm` candidates use controlled upstream validation, with Xiami
+  attempted before Ximalaya for `.xm`.
 
 ## Upgrade policy
 

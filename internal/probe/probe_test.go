@@ -43,6 +43,8 @@ func TestProbeStructuralFormats(t *testing.T) {
 		{"st tag", append([]byte("encrypted"), []byte("STag")...), FamilyQMC, "STag"},
 		{"q tag", append([]byte("encrypted"), []byte("QTag")...), FamilyQMC, "QTag"},
 		{"musicex", musicEx(0xc0, 1), FamilyQMC, "MusicEx"},
+		{"tm", append([]byte("QQMU"), make([]byte, 12)...), FamilyTM, "TM"},
+		{"xiami", append([]byte("ifmt MP3"), []byte{0xfe, 0xfe, 0xfe, 0xfe, 0, 0, 0, 0}...), FamilyXiami, "XM"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

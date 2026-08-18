@@ -57,10 +57,12 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 	if options.Resolver == nil {
 		options.Resolver = DefaultResolver{}
 	}
-	stream, err := options.Resolver.Resolve(&Input{Path: inputPath, Probe: p, Reader: f})
+	input := &Input{Path: inputPath, Probe: p, Reader: f}
+	stream, err := options.Resolver.Resolve(input)
 	if err != nil {
 		return result, err
 	}
+	result.EncryptedFamily, result.EncryptedVariant, result.CryptoVersion = string(input.Probe.Family), input.Probe.Variant, input.Probe.CryptoVersion
 
 	prefix := make([]byte, 64)
 	n, readErr := io.ReadFull(stream, prefix)
@@ -76,7 +78,7 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 	if err := os.MkdirAll(options.OutDir, 0755); err != nil {
 		return result, err
 	}
-	outputPath, planErr := outputplan.Plan(outputplan.Request{InputPath: inputPath, OutputDir: options.OutDir, Probe: p, DecodedFormat: format})
+	outputPath, planErr := outputplan.Plan(outputplan.Request{InputPath: inputPath, OutputDir: options.OutDir, Probe: input.Probe, DecodedFormat: format})
 	if planErr != nil {
 		if errors.Is(planErr, outputplan.ErrSourceConflict) {
 			return result, coded(CodeOutputConflictsSource, planErr)

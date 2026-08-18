@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"musicunlocker/internal/probe"
@@ -14,6 +15,39 @@ import (
 type fakeResolver struct {
 	data []byte
 	err  error
+}
+
+func TestResolverControlledFallback(t *testing.T) {
+	for _, tc := range []struct{ name, suffix, want string }{
+		{"tm", ".tm2", "candidate decoder validation failed"},
+		{"ximalaya", ".x2m", "candidate decoder validation failed"},
+		{"ambiguous xm", ".xm", "candidate decoder validation failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := (DefaultResolver{}).Resolve(&Input{Path: "sample" + tc.suffix, Probe: probe.Result{ExtensionHints: []string{tc.suffix}}, Reader: bytes.NewReader([]byte("invalid"))})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+	_, err := (DefaultResolver{}).Resolve(&Input{Path: "sample.mp3", Probe: probe.Result{ExtensionHints: []string{".mp3"}}, Reader: bytes.NewReader([]byte("invalid"))})
+	if CodeOf(err) != CodeUnknownFormat {
+		t.Fatalf("generic raw candidate code = %q", CodeOf(err))
+	}
+}
+
+func TestResolverTMRawPassthroughCandidate(t *testing.T) {
+	stream, err := (DefaultResolver{}).Resolve(&Input{Path: "sample.tm0", Probe: probe.Result{Family: probe.FamilyRaw, ExtensionHints: []string{".tm0"}}, Reader: bytes.NewReader([]byte("ID3\x04\x00audio"))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := make([]byte, 3)
+	if _, err := stream.Read(prefix); err != nil {
+		t.Fatal(err)
+	}
+	if string(prefix) != "ID3" {
+		t.Fatalf("prefix = %q", prefix)
+	}
 }
 
 func (r fakeResolver) Resolve(*Input) (Stream, error) {

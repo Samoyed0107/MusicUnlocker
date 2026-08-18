@@ -31,6 +31,10 @@ func TestPlanCleanNames(t *testing.T) {
 		{"misleading jpg", "foo.jpg", "mp3", probe.FamilyKugou, "foo.mp3"},
 		{"misleading flac", "foo.flac", "mp3", probe.FamilyKugou, "foo.mp3"},
 		{"extensionless", "foo", "mp3", probe.FamilyKugou, "foo.mp3"},
+		{"tm", "foo.tm2", "m4a", probe.FamilyTM, "foo.m4a"},
+		{"ximalaya", "foo.x2m", "mp3", probe.FamilyXimalaya, "foo.mp3"},
+		{"ximalaya m4a", "foo.x3m", "m4a", probe.FamilyXimalaya, "foo.m4a"},
+		{"xiami", "foo.xm", "flac", probe.FamilyXiami, "foo.flac"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -78,7 +78,19 @@ func knownWrapper(ext string, result probe.Result) string {
 			return ext
 		}
 	case probe.FamilyQMC:
-		if ext == ".qmc0" || ext == ".mgg0" || ext == ".mflac0" {
+		if isQMCWrapper(ext) {
+			return ext
+		}
+	case probe.FamilyTM:
+		if ext == ".tm0" || ext == ".tm2" || ext == ".tm3" || ext == ".tm6" {
+			return ext
+		}
+	case probe.FamilyXiami:
+		if ext == ".xm" {
+			return ext
+		}
+	case probe.FamilyXimalaya:
+		if ext == ".x2m" || ext == ".x3m" || ext == ".xm" {
 			return ext
 		}
 	}
@@ -88,6 +100,15 @@ func knownWrapper(ext string, result probe.Result) string {
 		}
 	}
 	return ""
+}
+
+func isQMCWrapper(ext string) bool {
+	switch ext {
+	case ".qmc0", ".qmc2", ".qmc3", ".qmc4", ".qmc6", ".qmc8", ".qmcflac", ".qmcogg", ".tkm", ".bkcmp3", ".bkcm4a", ".bkcflac", ".bkcwav", ".bkcape", ".bkcogg", ".bkcwma", ".666c6163", ".6d7033", ".6f6767", ".6d3461", ".776176", ".mmp4", ".mgg", ".mgg0", ".mgg1", ".mgga", ".mggh", ".mggl", ".mggm", ".mflac", ".mflac0", ".mflac1", ".mflaca", ".mflach", ".mflacl", ".mflacm":
+		return true
+	default:
+		return false
+	}
 }
 
 func samePath(a, b string) bool {

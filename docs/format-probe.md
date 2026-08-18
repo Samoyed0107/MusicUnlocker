@@ -17,12 +17,14 @@ file bytes -> structural probe+
 - KGM and VPR: their canonical 16-byte magic; KGM-compatible header fields at `0x10`, `0x14`, and `0x18` are reported when present.
 - NCM: `CTENFDAM` at the beginning of the file.
 - KWM: either canonical 16-byte `yeelion-kuwo-tme` or `yeelion-kuwo\0\0\0\0` header.
+- TM: the canonical `QQMU` header used by the TM M4A-header repair format.
+- Xiami: `ifmt`, a recognised four-byte audio type, and `FEFEFEFE` at offsets `0x08`-`0x0B`.
 - QMC: final `STag` or `QTag`, and MusicEx version 1 with a plausible tag size (at least `0xC0`, no larger than the file, and no larger than the probe limit).
 - Raw audio: `fLaC`, `OggS`, `RIFF....WAVE`, ID3 MP3, and structurally plausible ISO BMFF `ftyp` (including M4A brands).
 
 ## Limitations
 
-Legacy QMC variants may lack a unique plaintext signature. Suffix-only QMC candidates remain unconfirmed until a future decoder-validation stage. Ximalaya, Xiami, TM, and other formats may initially rely on candidate dispatch until content evidence is formally implemented. Format Probe does not obtain DRM/media keys and does not decode audio.
+Legacy QMC variants may lack a unique plaintext signature. Suffix-only QMC candidates remain unconfirmed until controlled decoder validation. Ximalaya has no simple reliable plaintext signature in the canonical decoder, so `.x2m`, `.x3m`, and ambiguous `.xm` names are validated only by their explicitly allowed adapters. Format Probe does not obtain DRM/media keys and does not decode audio.
 
 ## Security/resource limits
 

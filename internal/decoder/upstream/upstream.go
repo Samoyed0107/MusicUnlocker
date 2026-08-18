@@ -12,15 +12,15 @@ import (
 	"unicode"
 
 	"git.um-react.app/um/cli/algo/common"
+	"git.um-react.app/um/cli/algo/qmc"
+	"git.um-react.app/um/cli/algo/tm"
+	"git.um-react.app/um/cli/algo/xiami"
+	"git.um-react.app/um/cli/algo/ximalaya"
 	"go.uber.org/zap"
 
 	_ "git.um-react.app/um/cli/algo/kgm"
 	_ "git.um-react.app/um/cli/algo/kwm"
 	_ "git.um-react.app/um/cli/algo/ncm"
-	_ "git.um-react.app/um/cli/algo/qmc"
-	_ "git.um-react.app/um/cli/algo/tm"
-	_ "git.um-react.app/um/cli/algo/xiami"
-	_ "git.um-react.app/um/cli/algo/ximalaya"
 )
 
 type Stream interface{ io.Reader }
@@ -78,6 +78,36 @@ func DecodeKWM(reader io.ReadSeeker, path string) (Stream, error) {
 		return nil, err
 	}
 	return decodeWith(reader, path, ".kwm")
+}
+
+func decodeFactory(reader io.ReadSeeker, path string, create common.NewDecoderFunc) (Stream, error) {
+	if reader == nil {
+		return nil, errors.New("upstream decoder: nil reader")
+	}
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	decoder := create(&common.DecoderParams{Reader: reader, FilePath: path, Logger: zap.NewNop()})
+	if err := decoder.Validate(); err != nil {
+		return nil, err
+	}
+	return decoder, nil
+}
+
+func DecodeQMC(reader io.ReadSeeker, path string) (Stream, error) {
+	return decodeFactory(reader, path, qmc.NewDecoder)
+}
+
+func DecodeTM(reader io.ReadSeeker, path string) (Stream, error) {
+	return decodeFactory(reader, path, tm.NewTmDecoder)
+}
+
+func DecodeXiami(reader io.ReadSeeker, path string) (Stream, error) {
+	return decodeFactory(reader, path, xiami.NewDecoder)
+}
+
+func DecodeXimalaya(reader io.ReadSeeker, path string) (Stream, error) {
+	return decodeFactory(reader, path, ximalaya.NewDecoder)
 }
 
 const maxNCMSection = 64 << 20

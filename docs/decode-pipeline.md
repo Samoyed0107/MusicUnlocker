@@ -1,57 +1,76 @@
-# Stage 3A decode pipeline
+# Stage 3C decode pipeline
 
 ## Pipeline
 
 ```text
-Probe → Resolver → Decoder → Decrypted Stream Sniff → Atomic Writer
+Probe → Resolver → Decoder → Decrypted Stream Sniff → Output Planner → Atomic Writer
 ```
 
-The decode core is independent from the CLI and GUI. It probes encrypted input
-by content, resolves a supported decoder, sniffs the decrypted prefix, and
-copies the original audio bytes without transcoding.
+The core remains independent from the CLI and GUI. Content evidence has
+priority over filename hints. When a family has no strong plaintext signature,
+only a deterministic, explicitly allowed filename candidate can trigger
+upstream `Validate`.
 
-## Current Stage 3B support
+## Decoder coverage
 
-- KGM/VPR Crypto V3: decode supported through the upstream adapter.
-- NCM: wired through the offline upstream adapter.
-- KWM: wired through the offline upstream adapter.
-- KGM Crypto V5: recognised, but requires the Kugou database and is not implemented.
-- QMC external-key formats: recognised, but the key is required and not implemented.
-- Other encrypted families: recognised where probed, but not wired into the decode resolver.
+| Family | Implementation | Automated tests | Real validation | External material |
+| --- | --- | --- | --- | --- |
+| KGM/VPR Crypto V3 | implemented | tested | validated | none |
+| NCM | implemented offline | tested | pending | none |
+| KWM | implemented offline | tested | pending | none |
+| QMC static/embedded-key/QTag candidates | implemented offline | tested at adapter boundary | pending | none for self-contained files |
+| QMC STag/MusicEx | blocked | tested | probe real-pass | external key required |
+| TM | implemented offline | tested | pending | none |
+| Xiami | implemented offline | tested | pending | none |
+| Ximalaya | controlled candidate validation | tested | pending | none |
 
-Unknown decrypted streams fail with `DECODED_AUDIO_FORMAT_UNKNOWN`; they are
-never assumed to be MP3.
+KGM Crypto V5 remains database-dependent. Other encrypted families remain
+unsupported for this stage.
 
-## Safety guarantees
+## Detection and fallback policy
 
-- source is opened read-only and is never deleted or renamed;
-- existing outputs are rejected;
-- output is written to a temporary file in the destination directory and renamed only after a successful copy;
-- decode performs no network activity;
-- decode does not transcode audio;
-- the output format is determined from decrypted content, not the input filename.
+Strong TM and Xiami content signatures route directly to their adapters. QMC
+footer evidence routes STag and MusicEx to the typed external-key state, while
+QTag may use the canonical self-contained decoder.
+
+For files without strong content evidence, only these distinctive candidates
+are considered, in deterministic priority order:
+
+1. QMC variants (`.qmc*`, `.mgg*`, `.mflac*`, `.tkm`)
+2. TM (`.tm0`, `.tm2`, `.tm3`, `.tm6`)
+3. Xiami then Ximalaya for ambiguous `.xm`
+4. Ximalaya (`.x2m`, `.x3m`)
+5. NCM (`.ncm`) and KWM (`.kwm`)
+
+Generic raw extensions such as `.mp3`, `.flac`, `.wav`, `.m4a`, and `.mp4`
+never trigger encrypted decoder brute force.
 
 ## Output Planner
 
-The reusable `internal/outputplan` package creates a clean destination name from
-the source basename, encrypted-family probe result, and actual decrypted audio
-format. It strips only recognised encrypted wrappers and terminal duplicate
-counters such as `foo.kgm(1).flac`; arbitrary title parentheses remain intact.
-Misleading outer audio extensions are removed when encrypted content is
-confirmed. Thus `foo.kgm(1).flac` decoded as MP3 becomes `foo.mp3`, and an
-extensionless `foo` becomes `foo.mp3` when the decrypted format is MP3.
+`internal/outputplan` derives the extension from decrypted-content sniffing.
+It removes only recognised encrypted wrappers and terminal duplicate counters:
 
-The planner detects source-path conflicts, while the decode core rejects an
-existing destination with `OUTPUT_EXISTS`. Neither case truncates the source.
-NCM and KWM decoding only calls the local upstream `Validate` and `Read`
-interfaces; metadata, cover-image, and network APIs are not invoked.
+- `foo.tm2` + M4A → `foo.m4a`
+- `foo.x2m` + MP3 → `foo.mp3`
+- `foo.xm` + FLAC → `foo.flac`
+- `Artist - Song (Live).ncm` + MP3 → `Artist - Song (Live).mp3`
+
+Ordinary title parentheses remain intact. Existing targets return
+`OUTPUT_EXISTS`; a planned target equal to the source returns
+`OUTPUT_CONFLICTS_SOURCE`. Both preserve the source file.
+
+## Safety and offline guarantees
+
+- source is read-only and never deleted or renamed;
+- output is copied to a temporary file and atomically renamed;
+- no transcoding is performed;
+- NCM, KWM, QMC, TM, Xiami, and Ximalaya adapters call only local upstream validation and stream operations;
+- metadata, cover-art, QQMusic processes, MMKV, key acquisition, and network APIs are not used.
 
 ## Developer CLI
 
 ```powershell
-go run ./cmd/musicdecode -- --out-dir "D:\decoded-test" "input.kgm"
+go run ./cmd/musicdecode -- --out-dir "D:\decoded-test" "input.tm2"
 ```
 
-Stage 3B accepts exactly one input file and requires an explicit output
-directory. Output uses the clean planned name, for example `foo.mp3`, rather
-than the old `.decoded` diagnostic suffix.
+The CLI accepts exactly one file and displays the clean planned output name.

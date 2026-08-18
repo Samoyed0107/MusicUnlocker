@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"reflect"
 	"testing"
+
+	canonicalqmc "git.um-react.app/um/cli/algo/qmc"
 )
 
 func syntheticKGMV3() []byte {
@@ -42,6 +44,39 @@ func TestDecodeNCMRejectsMalformedInput(t *testing.T) {
 func TestDecodeKWMRejectsMalformedInput(t *testing.T) {
 	if _, err := DecodeKWM(bytes.NewReader([]byte("yeelion-kuwo-tme")), "input.kwm"); err == nil {
 		t.Fatal("malformed KWM was accepted")
+	}
+}
+
+func TestLegacyAdaptersRejectMalformedInput(t *testing.T) {
+	if _, err := DecodeTM(bytes.NewReader([]byte("QQMU")), "input.tm2"); err == nil {
+		t.Fatal("malformed TM was accepted")
+	}
+	if _, err := DecodeXiami(bytes.NewReader([]byte("ifmt")), "input.xm"); err == nil {
+		t.Fatal("malformed Xiami was accepted")
+	}
+	if _, err := DecodeXimalaya(bytes.NewReader([]byte("invalid")), "input.x2m"); err == nil {
+		t.Fatal("malformed Ximalaya was accepted")
+	}
+}
+
+func TestDecodeQMCStaticVariant(t *testing.T) {
+	plain := append([]byte("fLaC"), bytes.Repeat([]byte{0x21}, 60)...)
+	cipher, err := canonicalqmc.NewQmcCipherDecoder(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cipher.Decrypt(plain, 0)
+	data := append(plain, []byte{0xff, 0xff, 0xff, 0xff}...)
+	stream, err := DecodeQMC(bytes.NewReader(data), "input.qmc0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefix := make([]byte, 4)
+	if _, err := stream.Read(prefix); err != nil {
+		t.Fatal(err)
+	}
+	if string(prefix) != "fLaC" {
+		t.Fatalf("prefix = %q", prefix)
 	}
 }
 
