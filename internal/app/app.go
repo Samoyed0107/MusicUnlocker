@@ -113,22 +113,28 @@ type ObserverEngine interface {
 }
 
 type Application struct {
-	engine   EngineRunner
-	sink     EventSink
-	dialogs  Dialogs
-	mu       sync.Mutex
-	running  bool
-	activeID uint64
-	nextID   uint64
-	cancel   context.CancelFunc
+	engine      EngineRunner
+	sink        EventSink
+	dialogs     Dialogs
+	preferences PreferencesStore
+	opener      FolderOpener
+	mu          sync.Mutex
+	running     bool
+	activeID    uint64
+	nextID      uint64
+	cancel      context.CancelFunc
 }
 
 func New(engine EngineRunner, sink EventSink, dialogs Dialogs) *Application {
-	return &Application{engine: engine, sink: sink, dialogs: dialogs}
+	return NewWithDependencies(engine, sink, dialogs, newFilePreferencesStore(), nil)
+}
+
+func NewWithDependencies(engine EngineRunner, sink EventSink, dialogs Dialogs, preferences PreferencesStore, opener FolderOpener) *Application {
+	return &Application{engine: engine, sink: sink, dialogs: dialogs, preferences: preferences, opener: opener}
 }
 
 func (a *Application) GetAppInfo() AppInfo {
-	return AppInfo{Name: "MusicUnlocker", Version: "Stage 5A", MaxWorkers: 8, SupportsPause: false, SupportsDrop: false}
+	return AppInfo{Name: "MusicUnlocker", Version: "Stage 5B", MaxWorkers: 8, SupportsPause: false, SupportsDrop: true}
 }
 
 func (a *Application) SelectFiles() ([]string, error) {
@@ -148,6 +154,31 @@ func (a *Application) SelectOutputFolder() (string, error) {
 		return "", errors.New("dialogs unavailable")
 	}
 	return a.dialogs.SelectOutputFolder()
+}
+
+func (a *Application) SuggestOutputFolder(inputs []string) (string, error) {
+	return SuggestOutputFolder(inputs)
+}
+
+func (a *Application) DescribeInputs(inputs []string) []SelectedInput { return DescribeInputs(inputs) }
+
+func (a *Application) GetPreferences() (Preferences, error) {
+	if a.preferences == nil {
+		return DefaultPreferences(), nil
+	}
+	p, err := a.preferences.Load()
+	return sanitizePreferences(p), err
+}
+
+func (a *Application) SavePreferences(p Preferences) error {
+	if a.preferences == nil {
+		return nil
+	}
+	return a.preferences.Save(sanitizePreferences(p))
+}
+
+func (a *Application) OpenOutputFolder(path string) error {
+	return openOutputFolder(path, a.opener)
 }
 
 func (a *Application) StartBatch(req BatchStartRequest) (BatchStartResponse, error) {

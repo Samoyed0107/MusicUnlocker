@@ -16,9 +16,10 @@ and scheduling remain in Go.
 ## DTOs and lifecycle
 
 The facade exposes `GetAppInfo`, `SelectFiles`, `SelectFolder`,
-`SelectOutputFolder`, `StartBatch`, and `CancelBatch`. `BatchStartRequest`,
-`QueueItem`, `ProgressEvent`, `BatchSnapshot`, and `BatchCompleteEvent` are
-the stable JSON-shaped contract.
+`SelectOutputFolder`, `DescribeInputs`, `SuggestOutputFolder`,
+`GetPreferences`, `SavePreferences`, `OpenOutputFolder`, `StartBatch`, and
+`CancelBatch`. `BatchStartRequest`, `QueueItem`, `ProgressEvent`,
+`BatchSnapshot`, and `BatchCompleteEvent` are the stable JSON-shaped contract.
 
 Each start receives a monotonically increasing `batchId`. Every transient
 event carries that ID, allowing the frontend to ignore events from an older
@@ -52,14 +53,75 @@ metadata and is not presented as an exact decoded-output percentage.
 
 Wails runtime dialogs support multi-file selection, folder selection, and
 output-folder selection. Dialog cancellation returns an empty selection and
-is not an application error. Native drag/drop is deferred to Stage 5B because
-the installed Wails path does not provide a small, already-integrated drop
-surface in this shell; the frontend does not scan folders itself.
+is not an application error. Stage 5B enables Wails v2's native
+`options.DragAndDrop{EnableFileDrop:true, DisableWebViewDrop:true}` and the
+frontend registers `runtime.OnFileDrop(callback, true)`. The drop zone uses
+`--wails-drop-target: drop`; Wails supplies absolute OS paths and applies its
+active drop-target class. The listener is removed with `OnFileDropOff` during
+React cleanup. Drop adds queue entries only and never starts a batch.
+
+## Queue and output policy
+
+Files, folders, and native drops share one path-deduplicating queue helper.
+Windows case and slash differences are treated conservatively as duplicates.
+Folders remain one row until discovery begins, and the bounded queue displays
+the type, basename, and shortened full path. Selection and drop controls are
+locked while a batch is running or cancelling; drops during that time are
+ignored with an inline message.
+
+When auto-suggestion is enabled and output has not been explicitly selected,
+one file suggests `<source directory>\Unlocked`; one directory suggests
+`<parent>\<directory name> - Unlocked`. Multiple inputs are treated as
+ambiguous and leave output unset. Browse marks the destination as an explicit
+override; it is not changed by later queue edits. Reset suggestion clears the
+override.
+
+Preferences contain only `MaxWorkers`, `Theme`, and `AutoSuggestOutput` and
+are stored as JSON at the per-user `os.UserConfigDir()/MusicUnlocker/preferences.json`.
+The file is bounded, unknown fields are ignored, invalid values use defaults,
+malformed files do not crash the app, and writes use a same-directory
+temporary file followed by rename (with a Windows replacement fallback).
+
+## Presentation and controls
+
+Machine statuses retain their backend values while the UI maps them to
+Completed, Not encrypted, Already exists, Key required, Database required,
+Unsupported, Unknown format, Failed, and Cancelled. Known error codes have
+concise explanations in expandable row details. Results use stable Index
+ordering and local All/Completed/Skipped/Blocked/Problems filters. Progress
+uses actual bytes written; any source-size bar is explicitly secondary and
+does not show a decoded percentage. Summary counters come from the final
+complete DTO and include Completed, Skipped, Blocked, Failed/Cancelled, and
+Written groups.
+
+Open Output Folder is a backend operation. It accepts only an absolute path
+that exists as a directory or file, resolves a file to its parent, and passes
+the validated path as a separate argument to `explorer.exe`; the frontend
+cannot run shell commands.
+
+The UI follows the system `prefers-color-scheme`, with a light default and a
+dark neutral surface treatment. It uses Segoe UI/system fonts, semantic
+buttons, visible keyboard focus, text status labels, disabled states, and a
+bounded processing-list scroll region. No explicit theme selector is exposed
+in this stage.
+
+## Manual Stage 5B GUI checklist
+
+1. Run `wails dev` and confirm the drop zone renders.
+2. Drop one file, several files, and one folder; confirm each remains a queue
+   row, duplicates are ignored, and no batch starts automatically.
+3. Confirm a single-file and single-folder output suggestion, then Browse and
+   verify the explicit destination is preserved.
+4. Start a harmless synthetic batch, inspect filters, status details, output
+   folder action, and cancellation.
+5. Restart and confirm only worker count/output-suggestion preference returns;
+   inputs and job history do not persist.
 
 ## Current limitations
 
-There is no pause/resume, persistence, overwrite mode, source deletion,
-external-key acquisition, KGG database loading, metadata/network access,
-FFmpeg integration, tray support, or installer packaging. The GUI has no
-real-file automated smoke test; manual testing remains intentionally separate
-from automated tests.
+There is no pause/resume, drag-to-EXE support, overwrite mode, source
+deletion, external-key acquisition, KGG database loading, metadata/network
+access, FFmpeg integration, tray support, installer packaging, or explicit
+theme selector. Native OS drag/drop still requires manual verification in a
+real Wails window; automated tests do not perform WebView E2E or decode real
+music.

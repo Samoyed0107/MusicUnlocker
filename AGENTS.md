@@ -34,3 +34,5 @@
 - Wails-facing DTOs must not expose upstream decoder types or Go errors directly.
 - The GUI permits only one active batch at a time and uses the final batch-complete result as authoritative.
 - GUI queue rows correlate by the stable batch index; selected input paths remain distinct from discovered files.
+- Native Wails file-drop paths remain OS-supplied absolute paths; frontend drops only mutate the selected-input queue and never start work.
+- GUI preferences are small, non-sensitive, per-user JSON and must not contain input history, keys, or raw filenames.

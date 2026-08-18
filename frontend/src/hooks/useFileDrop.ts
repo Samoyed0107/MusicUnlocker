@@ -1,0 +1,2 @@
+import { useEffect } from 'react'
+export function useFileDrop(disabled: boolean, onPaths: (paths:string[])=>void, onIgnored:()=>void) { useEffect(()=>{ const runtime=window.runtime; if(!runtime?.OnFileDrop)return; runtime.OnFileDrop((_x:number,_y:number,paths:string[])=>{ if(disabled){onIgnored();return} onPaths(paths) },true); return ()=>runtime.OnFileDropOff?.() },[disabled,onPaths,onIgnored]) }
