@@ -1,0 +1,4 @@
+.audio-preview{margin-top:14px;padding:12px 14px;border:1px solid #d6e2e9;border-radius:9px;background:#f8fbfd}
+.preview-heading,.preview-controls{display:flex;align-items:center;gap:10px}
+.preview-heading{justify-content:space-between}.preview-controls{margin-top:10px}.preview-controls input{padding:0}
+.preview-controls span{font-variant-numeric:tabular-nums;color:#627581;font-size:12px;white-space:nowrap}.preview-error{margin-top:10px;color:#a43c3c;font-size:12px}.play-button{padding:5px 8px;font-size:11px;justify-self:start}

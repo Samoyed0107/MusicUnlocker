@@ -74,10 +74,18 @@ func (w *App) StartBatch(req app.BatchStartRequest) (app.BatchStartResponse, err
 	return w.facade.StartBatch(req)
 }
 func (w *App) CancelBatch() error { return w.facade.CancelBatch() }
+func (w *App) GetPreviewURL(batchID uint64, index int) (app.PreviewResponse, error) {
+	return w.facade.GetPreviewURL(batchID, index)
+}
+func (w *App) shutdown(ctx context.Context) {
+	if w.facade != nil {
+		_ = w.facade.Shutdown(ctx)
+	}
+}
 
 func main() {
 	application := newWailsApp()
-	if err := wails.Run(&options.App{Title: "MusicUnlocker", Width: 1100, Height: 760, MinWidth: 900, MinHeight: 600, AssetServer: &assetserver.Options{Assets: assets}, BackgroundColour: &options.RGBA{R: 248, G: 250, B: 252, A: 1}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, OnStartup: application.startup, Bind: []interface{}{application}}); err != nil {
+	if err := wails.Run(&options.App{Title: "MusicUnlocker", Width: 1100, Height: 760, MinWidth: 900, MinHeight: 600, AssetServer: &assetserver.Options{Assets: assets}, BackgroundColour: &options.RGBA{R: 248, G: 250, B: 252, A: 1}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, OnStartup: application.startup, OnShutdown: application.shutdown, Bind: []interface{}{application}}); err != nil {
 		println("Error:", err.Error())
 	}
 }

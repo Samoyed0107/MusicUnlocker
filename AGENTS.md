@@ -36,3 +36,5 @@
 - GUI queue rows correlate by the stable batch index; selected input paths remain distinct from discovered files.
 - Native Wails file-drop paths remain OS-supplied absolute paths; frontend drops only mutate the selected-input queue and never start work.
 - GUI preferences are small, non-sensitive, per-user JSON and must not contain input history, keys, or raw filenames.
+- Preview URLs use authorized opaque in-memory IDs; frontend calls cannot provide arbitrary local paths.
+- Preview failure never changes a decoder result status, and preview must not send complete audio through Wails/base64 IPC.

@@ -123,6 +123,10 @@ type Application struct {
 	activeID    uint64
 	nextID      uint64
 	cancel      context.CancelFunc
+	preview     *PreviewService
+	previewErr  error
+	latestID    uint64
+	latest      *BatchSnapshot
 }
 
 func New(engine EngineRunner, sink EventSink, dialogs Dialogs) *Application {
@@ -130,7 +134,13 @@ func New(engine EngineRunner, sink EventSink, dialogs Dialogs) *Application {
 }
 
 func NewWithDependencies(engine EngineRunner, sink EventSink, dialogs Dialogs, preferences PreferencesStore, opener FolderOpener) *Application {
-	return &Application{engine: engine, sink: sink, dialogs: dialogs, preferences: preferences, opener: opener}
+	preview := NewPreviewService()
+	return &Application{engine: engine, sink: sink, dialogs: dialogs, preferences: preferences, opener: opener, preview: preview, previewErr: preview.startError}
+}
+
+// NewWithPreview is useful for application tests and controlled hosts.
+func NewWithPreview(engine EngineRunner, sink EventSink, dialogs Dialogs, preferences PreferencesStore, opener FolderOpener, preview *PreviewService) *Application {
+	return &Application{engine: engine, sink: sink, dialogs: dialogs, preferences: preferences, opener: opener, preview: preview}
 }
 
 func (a *Application) GetAppInfo() AppInfo {
@@ -195,6 +205,10 @@ func (a *Application) StartBatch(req BatchStartRequest) (BatchStartResponse, err
 	}
 	a.nextID++
 	id := a.nextID
+	if a.preview != nil {
+		a.preview.Invalidate()
+	}
+	a.latestID, a.latest = 0, nil
 	ctx, cancel := context.WithCancel(context.Background())
 	a.running, a.activeID, a.cancel = true, id, cancel
 	a.mu.Unlock()
@@ -222,12 +236,64 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 	if err != nil {
 		complete.ErrorCode, complete.ErrorDetail = "BATCH_ERROR", err.Error()
 	}
+	a.mu.Lock()
+	if a.activeID == id {
+		copySnapshot := complete.Snapshot
+		copySnapshot.Results = append([]QueueItem(nil), complete.Snapshot.Results...)
+		a.latestID, a.latest = id, &copySnapshot
+	}
+	a.mu.Unlock()
 	a.sink.Emit(EventComplete, complete)
 	a.mu.Lock()
 	if a.activeID == id {
 		a.running, a.cancel = false, nil
 	}
 	a.mu.Unlock()
+}
+
+func (a *Application) GetPreviewURL(batchID uint64, index int) (PreviewResponse, error) {
+	a.mu.Lock()
+	if a.previewErr != nil || a.preview == nil {
+		a.mu.Unlock()
+		return PreviewResponse{}, ErrPreviewServerUnavailable
+	}
+	if a.latestID != batchID || a.latest == nil {
+		a.mu.Unlock()
+		return PreviewResponse{}, ErrPreviewResultNotFound
+	}
+	var item *QueueItem
+	for i := range a.latest.Results {
+		if a.latest.Results[i].Index == index {
+			item = &a.latest.Results[i]
+			break
+		}
+	}
+	if item == nil {
+		a.mu.Unlock()
+		return PreviewResponse{}, ErrPreviewResultNotFound
+	}
+	if item.Status != string(batch.StatusSuccess) || item.OutputPath == "" {
+		a.mu.Unlock()
+		return PreviewResponse{}, ErrPreviewNotAvailable
+	}
+	path := item.OutputPath
+	a.mu.Unlock()
+	token, format, err := a.preview.Register(path)
+	if err != nil {
+		return PreviewResponse{}, err
+	}
+	url := a.preview.URL(token)
+	if url == "" {
+		return PreviewResponse{}, ErrPreviewResultNotFound
+	}
+	return PreviewResponse{Available: true, URL: url, Format: format}, nil
+}
+
+func (a *Application) Shutdown(ctx context.Context) error {
+	if a.preview == nil {
+		return nil
+	}
+	return a.preview.Shutdown(ctx)
 }
 
 type observedEngine struct {

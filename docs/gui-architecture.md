@@ -125,3 +125,27 @@ access, FFmpeg integration, tray support, installer packaging, or explicit
 theme selector. Native OS drag/drop still requires manual verification in a
 real Wails window; automated tests do not perform WebView E2E or decode real
 music.
+
+## Stage 5C audio preview
+
+Successful completed rows can request a media URL through the application
+facade using `BatchID + queue Index`. The application retains only the latest
+completed snapshot and validates that the authoritative result is `SUCCESS`,
+has a non-empty output path, and still resolves to a regular file.
+
+The application owns a short-lived HTTP service bound explicitly to
+`127.0.0.1` on an OS-assigned port. URLs contain only unpredictable,
+in-memory capability IDs; the frontend can never provide a filesystem path to
+the endpoint. The registry is cleared when a new batch starts and on process
+shutdown, so tokens do not persist. Every request reopens and revalidates the
+authorized path, uses conservative `nosniff`/`no-store` headers, and serves
+only `GET`/`HEAD` through `http.ServeContent`, including byte ranges for seek.
+No directory browsing or arbitrary static-file route exists.
+
+The UI has one native HTML audio element and one compact player. A new batch
+stops and releases the old source; stale asynchronous URL responses are
+discarded. Play is offered only for successful rows. A missing output or an
+unsupported WebView codec makes preview unavailable without changing the
+decoder result, which remains `SUCCESS`; Open Output Folder remains available.
+Preview is native browser playback only and does not add metadata networking,
+FFmpeg, transcoding, waveform, or cover-art support.
