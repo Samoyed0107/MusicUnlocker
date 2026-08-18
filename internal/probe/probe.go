@@ -67,6 +67,8 @@ func Probe(r io.ReadSeeker, filename string) (result Result, err error) {
 	if r == nil {
 		return result, errors.New("probe: nil reader")
 	}
+	result.Family = FamilyUnknown
+	result.Confidence = ConfidenceUnknown
 	start, err := r.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return result, fmt.Errorf("probe: record position: %w", err)

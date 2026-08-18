@@ -27,3 +27,14 @@ Legacy QMC variants may lack a unique plaintext signature. Suffix-only QMC candi
 ## Security/resource limits
 
 The probe reads at most 4096 bytes from the beginning and recognizes footer structures from small tail reads. MusicEx validation refuses sizes over 64 KiB before any tag allocation or read. Short and malformed files return an unknown or hint-only result without panicking. Reader position is restored on return.
+
+## Developer diagnostic CLI
+
+`musicprobe` is a development diagnostic tool, not the final end-user CLI. It accepts one or more file paths, does not recurse into directories, and never decodes or writes audio.
+
+```powershell
+go run ./cmd/musicprobe -- <file>
+go run ./cmd/musicprobe --json -- <file>
+```
+
+Human output is intended to be copied into bug reports. JSON output contains a `files` array with path, size, probe result, and an operational `error` field when opening or probing fails. Unknown formats are successful probes and exit with code 0; a missing or unreadable file makes the command exit nonzero.
