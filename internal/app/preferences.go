@@ -15,6 +15,7 @@ type Preferences struct {
 	AutoSuggestOutput    bool   `json:"autoSuggestOutput"`
 	NamingMode           string `json:"namingMode,omitempty"`
 	CustomNamingTemplate string `json:"customNamingTemplate,omitempty"`
+	Language             string `json:"language,omitempty"`
 }
 
 type PreferencesStore interface {
@@ -23,13 +24,16 @@ type PreferencesStore interface {
 }
 
 func DefaultPreferences() Preferences {
-	return Preferences{MaxWorkers: 1, Theme: "system", AutoSuggestOutput: true, NamingMode: string(naming.KeepSource)}
+	return Preferences{MaxWorkers: 1, Theme: "system", AutoSuggestOutput: true, NamingMode: string(naming.KeepSource), Language: "SYSTEM"}
 }
 
 func DefaultPreferencesStore() PreferencesStore { return newFilePreferencesStore() }
 
 func sanitizePreferences(p Preferences) Preferences {
 	d := DefaultPreferences()
+	if p.Language == "SYSTEM" || p.Language == "zh-CN" || p.Language == "en-US" {
+		d.Language = p.Language
+	}
 	if p.MaxWorkers >= 1 && p.MaxWorkers <= 8 {
 		d.MaxWorkers = p.MaxWorkers
 	}

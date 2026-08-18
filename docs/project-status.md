@@ -8,6 +8,7 @@
 | 5D | `IMPLEMENTATION_COMPLETE` / `REAL_MANUAL_VALIDATION_PENDING` | Windows argv launch, drag-to-EXE path delivery, and Wails single-instance handoff. |
 | 5E1 | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Offline metadata-aware decoded-output naming core and deterministic finalization. |
 | 5E2 | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | GUI naming controls, backend validation, batch mapping, and preference integration. |
+| 5F | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes and live switching. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -17,3 +18,6 @@ real Windows installation.
 
 Stage 5E2 automated validation is complete. Manual real naming validation with
 the user's external NCM sample remains `PENDING`.
+
+Stage 5F localization implementation and automated validation are complete.
+Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.

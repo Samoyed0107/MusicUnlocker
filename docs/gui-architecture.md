@@ -82,7 +82,8 @@ override; it is not changed by later queue edits. Reset suggestion clears the
 override.
 
 Preferences contain only `MaxWorkers`, `Theme`, `AutoSuggestOutput`,
-`NamingMode`, and `CustomNamingTemplate` and
+`NamingMode`, `CustomNamingTemplate`, and stable `Language` (`SYSTEM`,
+`zh-CN`, or `en-US`) and
 are stored as JSON at the per-user `os.UserConfigDir()/MusicUnlocker/preferences.json`.
 The file is bounded, unknown fields are ignored, invalid values use defaults,
 malformed files do not crash the app, and writes use a same-directory
@@ -109,7 +110,9 @@ The UI follows the system `prefers-color-scheme`, with a light default and a
 dark neutral surface treatment. It uses Segoe UI/system fonts, semantic
 buttons, visible keyboard focus, text status labels, disabled states, and a
 bounded processing-list scroll region. No explicit theme selector is exposed
-in this stage.
+in this stage. The frontend uses a small `LocalizationProvider` and typed
+translation hook; locale changes are presentation-only and do not alter batch,
+preview, queue, naming, or output state.
 
 ## Manual Stage 5B GUI checklist
 

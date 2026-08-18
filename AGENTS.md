@@ -44,3 +44,5 @@
 - Metadata-derived destinations are committed in deterministic queue-index order after concurrent preparation, with uncommitted temporary files cleaned on cancellation or conflict.
 - GUI naming validation and rendering examples must come from the Go `internal/naming` backend; the frontend must not implement a second template parser.
 - Each active batch captures its validated naming configuration immutably; later preference edits do not affect that batch.
+- User-visible frontend strings use bundled localization keys; English is the complete fallback.
+- Core status/error enum values and naming template tokens are never translated.

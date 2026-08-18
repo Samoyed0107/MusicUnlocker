@@ -1,5 +1,16 @@
 # Product requirements
 
+## Localized GUI language resources
+
+Status: `IMPLEMENTED` (Stage 5F).
+
+MusicUnlocker supports system-following GUI language selection plus Simplified
+Chinese (`zh-CN`) and English (`en-US`). Resources are bundled and the
+architecture is extensible to future mainstream languages, but only these two
+production languages are implemented now. Localization is presentation-layer
+behavior; machine status/error codes, naming modes, custom template tokens,
+filenames, and metadata remain stable and untranslated.
+
 ## Metadata-based decoded-output naming
 
 Status: `PLANNED / NOT IMPLEMENTED` (Stage 5E or equivalent).

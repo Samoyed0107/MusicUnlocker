@@ -64,3 +64,31 @@ func TestPreferencesNamingDefaultsAndInvalidRecovery(t *testing.T) {
 		t.Fatalf("custom=%+v err=%v", got, err)
 	}
 }
+
+func TestPreferencesLanguageCompatibilityAndRecovery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	store := &filePreferencesStore{path: path}
+	if err := os.WriteFile(path, []byte(`{"maxWorkers":4,"theme":"dark","autoSuggestOutput":false,"namingMode":"TITLE"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 4 || got.Theme != "dark" || got.AutoSuggestOutput {
+		t.Fatalf("old config=%+v err=%v", got, err)
+	}
+	for _, language := range []string{"SYSTEM", "zh-CN", "en-US"} {
+		if err := store.Save(Preferences{MaxWorkers: 2, Theme: "light", AutoSuggestOutput: true, NamingMode: "TITLE", Language: language}); err != nil {
+			t.Fatal(err)
+		}
+		got, err = store.Load()
+		if err != nil || got.Language != language || got.MaxWorkers != 2 || got.NamingMode != "TITLE" {
+			t.Fatalf("language=%q got=%+v err=%v", language, got, err)
+		}
+	}
+	if err := store.Save(Preferences{MaxWorkers: 3, Theme: "dark", AutoSuggestOutput: false, NamingMode: "TITLE", Language: "xx"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = store.Load()
+	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 3 || got.Theme != "dark" || got.AutoSuggestOutput {
+		t.Fatalf("invalid language=%+v err=%v", got, err)
+	}
+}

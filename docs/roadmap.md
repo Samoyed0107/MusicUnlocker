@@ -24,3 +24,10 @@ Expose naming modes and custom templates through GUI preferences and controls.
 The GUI uses backend validation and examples, keeps KEEP_SOURCE as the default,
 captures naming immutably per batch, and leaves real external-audio validation
 pending.
+
+## Completed: Stage 5F
+
+Add bundled GUI localization with live `SYSTEM`, `zh-CN`, and `en-US`
+selection, persisted stable preference values, English fallback, and typed
+resource parity validation. Machine statuses, error codes, naming modes, and
+template tokens remain unchanged.
