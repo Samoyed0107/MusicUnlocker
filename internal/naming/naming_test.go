@@ -24,7 +24,11 @@ func TestPolicies(t *testing.T) {
 	}
 }
 func TestFallbackAndTemplateErrors(t *testing.T) {
-	r, e := Resolve(Config{Mode: ArtistTitle}, "foo", audiometa.Metadata{Title: "Salvation"}, true)
+	r, e := Resolve(Config{Mode: Custom, CustomTemplate: "{source}-TEST"}, "Salvation", audiometa.Metadata{}, false)
+	if e != nil || r.Fallback || r.Stem != "Salvation-TEST" {
+		t.Fatalf("source-only custom template should not require metadata: %#v %v", r, e)
+	}
+	r, e = Resolve(Config{Mode: ArtistTitle}, "foo", audiometa.Metadata{Title: "Salvation"}, true)
 	if e != nil || !r.Fallback || r.Stem != "foo" {
 		t.Fatalf("fallback %#v %v", r, e)
 	}

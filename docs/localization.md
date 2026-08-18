@@ -8,8 +8,12 @@ Resolution uses WebView browser language APIs at startup and never uses the
 network.
 
 Resources are `frontend/src/i18n/en-US.ts` and `zh-CN.ts`; the typed provider,
-interpolation, resolution, English fallback, and key-parity validation are in
-`index.tsx`. UI code uses semantic keys and `t(key, vars)`. English is complete.
+interpolation, resolution, English fallback, and key/interpolation-parity
+validation are in `index.tsx` and `validation.ts`. Strict validation runs in
+the frontend i18n smoke test; runtime initialization does not throw because of
+one non-English resource mismatch. Such a key falls back to English and logs
+diagnostics in Vite development mode. UI code uses semantic keys and
+`t(key, vars)`. English is complete.
 
 Switching language is live and presentation-only: it does not restart or
 cancel a batch, clear the queue, change naming or output paths, or stop audio

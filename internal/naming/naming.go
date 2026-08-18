@@ -94,7 +94,7 @@ func Resolve(c Config, source string, metadata audiometa.Metadata, available boo
 		template = c.CustomTemplate
 	}
 	stem, ok := render(template, source, metadata)
-	if !available || !ok {
+	if !ok || (requiresMetadata(template) && !available) {
 		r.Fallback = true
 		r.FallbackReason = "metadata incomplete; source filename used"
 		return r, nil
@@ -108,6 +108,19 @@ func Resolve(c Config, source string, metadata audiometa.Metadata, available boo
 	r.Stem = stem
 	r.UsedMode = c.Mode
 	return r, nil
+}
+
+func requiresMetadata(template string) bool {
+	parts, err := parse(template)
+	if err != nil {
+		return true
+	}
+	for _, part := range parts {
+		if part != "source" && tokens[part] != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func parse(s string) ([]string, error) {

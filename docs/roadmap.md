@@ -23,11 +23,14 @@ queue-ordered post-decode finalization; its GUI exposure is delivered in 5E2.
 Expose naming modes and custom templates through GUI preferences and controls.
 The GUI uses backend validation and examples, keeps KEEP_SOURCE as the default,
 captures naming immutably per batch, and leaves real external-audio validation
-pending.
+pending. A source-only CUSTOM template regression was fixed; real retest is
+still pending.
 
 ## Completed: Stage 5F
 
 Add bundled GUI localization with live `SYSTEM`, `zh-CN`, and `en-US`
 selection, persisted stable preference values, English fallback, and typed
-resource parity validation. Machine statuses, error codes, naming modes, and
-template tokens remain unchanged.
+resource/interpolation parity validation. The `batch.itemsAdded` parity defect
+was fixed, runtime mismatches fall back safely to English, and the corrected
+production GUI still requires real retest. Machine statuses, error codes,
+naming modes, and template tokens remain unchanged.

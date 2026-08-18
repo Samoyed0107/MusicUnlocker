@@ -27,3 +27,24 @@ It is not copied into this repository.
 - Wails production Windows build: `REAL_PASS`.
 
 No real audio or decoded output is stored in this repository.
+
+## Stage 5E2 and 5F acceptance regression
+
+- NCM decoding: `REAL_PASS` (existing evidence preserved).
+- Audio integrity SHA-256: `REAL_PASS` (existing evidence preserved).
+- Stage 5E2 metadata-dependent naming on the known NCM: metadata fallback was
+  observed because decoded-audio metadata is unavailable under the current
+  design; this is not by itself a Core failure.
+- Stage 5E2 CUSTOM `{source}` GUI naming: `REAL_FAIL / FIX_IMPLEMENTED /
+  REAL_RETEST_PENDING`. The source-only template was incorrectly forced through
+  metadata-availability fallback; no real audio was used for the automated fix.
+- Stage 5F production GUI: `REAL_FAIL / FIX_IMPLEMENTED /
+  REAL_RETEST_PENDING`. Debug DevTools identified the first exception as
+  `Localization interpolation mismatch: batch.itemsAdded`; the favicon 404 was
+  non-causal. A corrected production EXE has not yet been physically confirmed.
+
+The debug production EXE was still running when `wails dev` was started during
+the failed investigation. Because Stage 5D uses a fixed Wails
+`SingleInstanceLock` ID, that run does not establish that `wails dev` alone
+white-screened. A valid dev reproduction requires closing all MusicUnlocker
+instances first, then running `wails dev` alone.
