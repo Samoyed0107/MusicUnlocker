@@ -25,13 +25,11 @@ func run(args []string, out, errOut io.Writer) int {
 	}
 	result, err := decode.DecodeFile(context.Background(), flags.Arg(0), decode.Options{OutDir: *outDir})
 	if err != nil {
-		if code := decode.CodeOf(err); code != "" {
-			fmt.Fprintf(errOut, "%s: %v\n", code, err)
-		} else {
-			fmt.Fprintln(errOut, err)
-		}
+		writeError(errOut, err)
 		return 1
 	}
 	fmt.Fprintf(out, "Input: %s\nEncryptedFamily: %s\nEncryptedVariant: %s\nCryptoVersion: %d\nDecodedFormat: %s\nOutput: %s\nBytesWritten: %d\nStatus: OK\n", result.InputPath, result.EncryptedFamily, result.EncryptedVariant, result.CryptoVersion, result.DecodedFormat, result.OutputPath, result.BytesWritten)
 	return 0
 }
+
+func writeError(out io.Writer, err error) { fmt.Fprintln(out, err) }

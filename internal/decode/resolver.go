@@ -27,8 +27,10 @@ func (DefaultResolver) Resolve(input *Input) (Stream, error) {
 			return nil, coded(CodeQMCExternalKeyRequired, errors.New("QMC format requires an external key"))
 		}
 		return nil, coded(CodeUnsupportedEncrypted, errors.New("QMC variant is not wired into Stage 3A"))
-	case probe.FamilyNetease, probe.FamilyKuwo:
-		return nil, coded(CodeUnsupportedEncrypted, errors.New("encrypted family is not wired into Stage 3A"))
+	case probe.FamilyNetease:
+		return upstream.DecodeNCM(input.Reader, input.Path)
+	case probe.FamilyKuwo:
+		return upstream.DecodeKWM(input.Reader, input.Path)
 	default:
 		for _, hint := range input.Probe.ExtensionHints {
 			switch hint {

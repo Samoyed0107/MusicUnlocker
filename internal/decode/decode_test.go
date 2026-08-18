@@ -92,7 +92,6 @@ func TestResolverTypedStates(t *testing.T) {
 		{"unknown", probe.Result{}, CodeUnknownFormat},
 		{"qmc", probe.Result{Family: probe.FamilyQMC, NeedsExternalKey: true}, CodeQMCExternalKeyRequired},
 		{"kgm v5", probe.Result{Family: probe.FamilyKugou, CryptoVersion: 5}, CodeKGGDatabaseRequired},
-		{"ncm", probe.Result{Family: probe.FamilyNetease}, CodeUnsupportedEncrypted},
 		{"tm candidate", probe.Result{ExtensionHints: []string{".tm2"}}, CodeUnsupportedEncrypted},
 	}
 	for _, tc := range cases {

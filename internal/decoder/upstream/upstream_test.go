@@ -33,6 +33,18 @@ func TestDecodeKGMV3UsesCanonicalAdapter(t *testing.T) {
 	}
 }
 
+func TestDecodeNCMRejectsMalformedInput(t *testing.T) {
+	if _, err := DecodeNCM(bytes.NewReader([]byte("CTENFDAM")), "input.ncm"); err == nil {
+		t.Fatal("malformed NCM was accepted")
+	}
+}
+
+func TestDecodeKWMRejectsMalformedInput(t *testing.T) {
+	if _, err := DecodeKWM(bytes.NewReader([]byte("yeelion-kuwo-tme")), "input.kwm"); err == nil {
+		t.Fatal("malformed KWM was accepted")
+	}
+}
+
 func TestCandidateSuffixesUsesUpstreamFilenameRegistrations(t *testing.T) {
 	tests := []struct {
 		name     string

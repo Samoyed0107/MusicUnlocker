@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"musicunlocker/internal/audiofmt"
+	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
 )
 
@@ -76,14 +76,16 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 	if err := os.MkdirAll(options.OutDir, 0755); err != nil {
 		return result, err
 	}
-	base := filepath.Base(inputPath)
-	outputPath := filepath.Join(options.OutDir, base+".decoded."+format)
-	result.OutputPath = outputPath
-	if samePath(outputPath, inputPath) {
-		return result, coded(CodeOutputExists, errors.New("output path is the source file"))
+	outputPath, planErr := outputplan.Plan(outputplan.Request{InputPath: inputPath, OutputDir: options.OutDir, Probe: p, DecodedFormat: format})
+	if planErr != nil {
+		if errors.Is(planErr, outputplan.ErrSourceConflict) {
+			return result, coded(CodeOutputConflictsSource, planErr)
+		}
+		return result, planErr
 	}
+	result.OutputPath = outputPath
 	if _, err := os.Stat(outputPath); err == nil {
-		return result, coded(CodeOutputExists, fmt.Errorf("output already exists: %s", outputPath))
+		return result, coded(CodeOutputExists, errors.New("output already exists: "+outputPath))
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return result, err
 	}
@@ -140,10 +142,4 @@ func copyContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, erro
 			return total, readErr
 		}
 	}
-}
-
-func samePath(a, b string) bool {
-	aa, errA := filepath.Abs(a)
-	bb, errB := filepath.Abs(b)
-	return errA == nil && errB == nil && filepath.Clean(aa) == filepath.Clean(bb)
 }

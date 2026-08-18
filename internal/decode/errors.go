@@ -14,6 +14,7 @@ const (
 	CodeUnknownFormat          ErrorCode = "UNKNOWN_FORMAT"
 	CodeDecodedAudioUnknown    ErrorCode = "DECODED_AUDIO_FORMAT_UNKNOWN"
 	CodeOutputExists           ErrorCode = "OUTPUT_EXISTS"
+	CodeOutputConflictsSource  ErrorCode = "OUTPUT_CONFLICTS_SOURCE"
 	CodeInvalidInput           ErrorCode = "INVALID_INPUT"
 )
 
