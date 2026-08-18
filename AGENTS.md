@@ -11,3 +11,6 @@
 - Avoid unnecessary audio transcoding.
 - Every supported encrypted format should eventually have regression tests.
 - Do not commit real copyrighted music samples.
+- Access upstream decoder code through the adapter boundary; do not add direct upstream imports elsewhere without explicit architectural approval.
+- Keep dependency versions pinned.
+- Treat extension matching as filename candidate discovery only, never as the final format-detection mechanism.
