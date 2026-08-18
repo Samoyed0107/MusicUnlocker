@@ -5,12 +5,16 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+
+	"musicunlocker/internal/naming"
 )
 
 type Preferences struct {
-	MaxWorkers        int    `json:"maxWorkers"`
-	Theme             string `json:"theme,omitempty"`
-	AutoSuggestOutput bool   `json:"autoSuggestOutput"`
+	MaxWorkers           int    `json:"maxWorkers"`
+	Theme                string `json:"theme,omitempty"`
+	AutoSuggestOutput    bool   `json:"autoSuggestOutput"`
+	NamingMode           string `json:"namingMode,omitempty"`
+	CustomNamingTemplate string `json:"customNamingTemplate,omitempty"`
 }
 
 type PreferencesStore interface {
@@ -19,7 +23,7 @@ type PreferencesStore interface {
 }
 
 func DefaultPreferences() Preferences {
-	return Preferences{MaxWorkers: 1, Theme: "system", AutoSuggestOutput: true}
+	return Preferences{MaxWorkers: 1, Theme: "system", AutoSuggestOutput: true, NamingMode: string(naming.KeepSource)}
 }
 
 func DefaultPreferencesStore() PreferencesStore { return newFilePreferencesStore() }
@@ -33,6 +37,14 @@ func sanitizePreferences(p Preferences) Preferences {
 		d.Theme = p.Theme
 	}
 	d.AutoSuggestOutput = p.AutoSuggestOutput
+	config := naming.Config{Mode: naming.Mode(p.NamingMode), CustomTemplate: p.CustomNamingTemplate}
+	if config.Mode == "" {
+		config.Mode = naming.KeepSource
+	}
+	if naming.Validate(config) == nil {
+		d.NamingMode = string(config.Mode)
+		d.CustomNamingTemplate = config.CustomTemplate
+	}
 	return d
 }
 

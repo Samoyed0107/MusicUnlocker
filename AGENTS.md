@@ -42,3 +42,5 @@
 - Decoded audio metadata is read offline only after the decoded temporary file is closed; metadata naming failure falls back to the cleaned source stem without invalidating a successful decode.
 - Naming templates never control the decoded extension or create directories; final extensions remain authoritative from decoded-content sniffing.
 - Metadata-derived destinations are committed in deterministic queue-index order after concurrent preparation, with uncommitted temporary files cleaned on cancellation or conflict.
+- GUI naming validation and rendering examples must come from the Go `internal/naming` backend; the frontend must not implement a second template parser.
+- Each active batch captures its validated naming configuration immutably; later preference edits do not affect that batch.

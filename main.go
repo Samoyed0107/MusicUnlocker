@@ -70,8 +70,11 @@ func (w *App) SuggestOutputFolder(inputs []string) (string, error) {
 func (w *App) DescribeInputs(inputs []string) []app.SelectedInput {
 	return w.facade.DescribeInputs(inputs)
 }
-func (w *App) GetPreferences() (app.Preferences, error)     { return w.facade.GetPreferences() }
-func (w *App) SavePreferences(p app.Preferences) error      { return w.facade.SavePreferences(p) }
+func (w *App) GetPreferences() (app.Preferences, error) { return w.facade.GetPreferences() }
+func (w *App) SavePreferences(p app.Preferences) error  { return w.facade.SavePreferences(p) }
+func (w *App) ValidateNamingConfig(c app.NamingConfigDTO) app.NamingValidation {
+	return app.ValidateNamingConfig(c)
+}
 func (w *App) OpenOutputFolder(path string) error           { return w.facade.OpenOutputFolder(path) }
 func (w *App) GetPendingLaunchPaths() *app.LaunchPathsEvent { return w.facade.GetPendingLaunchPaths() }
 func (w *App) StartBatch(req app.BatchStartRequest) (app.BatchStartResponse, error) {

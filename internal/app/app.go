@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"musicunlocker/internal/audiometa"
 	"musicunlocker/internal/batch"
+	"musicunlocker/internal/naming"
 )
 
 const (
@@ -31,9 +33,21 @@ type ApplicationError struct{ Code, Detail string }
 func (e *ApplicationError) Error() string { return fmt.Sprintf("%s: %s", e.Code, e.Detail) }
 
 type BatchStartRequest struct {
-	Inputs     []string `json:"inputs"`
-	OutputRoot string   `json:"outputRoot"`
-	MaxWorkers int      `json:"maxWorkers"`
+	Inputs     []string         `json:"inputs"`
+	OutputRoot string           `json:"outputRoot"`
+	MaxWorkers int              `json:"maxWorkers"`
+	Naming     *NamingConfigDTO `json:"naming,omitempty"`
+}
+
+type NamingConfigDTO struct {
+	Mode           string `json:"mode"`
+	CustomTemplate string `json:"customTemplate,omitempty"`
+}
+
+type NamingValidation struct {
+	Valid   bool   `json:"valid"`
+	Error   string `json:"error,omitempty"`
+	Example string `json:"example,omitempty"`
 }
 
 type BatchStartResponse struct {
@@ -49,20 +63,22 @@ type AppInfo struct {
 }
 
 type QueueItem struct {
-	Index             int    `json:"index"`
-	SourcePath        string `json:"sourcePath"`
-	SourceDisplayName string `json:"sourceDisplayName"`
-	RelativePath      string `json:"relativePath,omitempty"`
-	OutputPath        string `json:"outputPath,omitempty"`
-	Family            string `json:"family,omitempty"`
-	Variant           string `json:"variant,omitempty"`
-	DecodedFormat     string `json:"decodedFormat,omitempty"`
-	SourceBytes       int64  `json:"sourceBytes"`
-	SourceBytesKnown  bool   `json:"sourceBytesKnown"`
-	BytesWritten      int64  `json:"bytesWritten"`
-	Status            string `json:"status"`
-	ErrorCode         string `json:"errorCode,omitempty"`
-	ErrorDetail       string `json:"errorDetail,omitempty"`
+	Index                int    `json:"index"`
+	SourcePath           string `json:"sourcePath"`
+	SourceDisplayName    string `json:"sourceDisplayName"`
+	RelativePath         string `json:"relativePath,omitempty"`
+	OutputPath           string `json:"outputPath,omitempty"`
+	Family               string `json:"family,omitempty"`
+	Variant              string `json:"variant,omitempty"`
+	DecodedFormat        string `json:"decodedFormat,omitempty"`
+	SourceBytes          int64  `json:"sourceBytes"`
+	SourceBytesKnown     bool   `json:"sourceBytesKnown"`
+	BytesWritten         int64  `json:"bytesWritten"`
+	Status               string `json:"status"`
+	ErrorCode            string `json:"errorCode,omitempty"`
+	ErrorDetail          string `json:"errorDetail,omitempty"`
+	NamingFallback       bool   `json:"namingFallback,omitempty"`
+	NamingFallbackReason string `json:"namingFallbackReason,omitempty"`
 }
 
 type ProgressEvent struct {
@@ -216,6 +232,26 @@ func (a *Application) SavePreferences(p Preferences) error {
 	return a.preferences.Save(sanitizePreferences(p))
 }
 
+func namingConfigFromDTO(dto *NamingConfigDTO) naming.Config {
+	if dto == nil || dto.Mode == "" {
+		return naming.Config{Mode: naming.KeepSource}
+	}
+	return naming.Config{Mode: naming.Mode(dto.Mode), CustomTemplate: dto.CustomTemplate}
+}
+
+func ValidateNamingConfig(dto NamingConfigDTO) NamingValidation {
+	config := namingConfigFromDTO(&dto)
+	if err := naming.Validate(config); err != nil {
+		return NamingValidation{Error: err.Error()}
+	}
+	metadata := audiometa.Metadata{Title: "Song Title", Artist: "Artist", Album: "Album", AlbumArtist: "Album Artist", Track: 5, Disc: 1, Year: 2026}
+	result, err := naming.Resolve(config, "source-file", metadata, true)
+	if err != nil {
+		return NamingValidation{Error: err.Error()}
+	}
+	return NamingValidation{Valid: true, Example: result.Stem + ".mp3"}
+}
+
 func (a *Application) OpenOutputFolder(path string) error {
 	return openOutputFolder(path, a.opener)
 }
@@ -227,6 +263,11 @@ func (a *Application) StartBatch(req BatchStartRequest) (BatchStartResponse, err
 	if req.MaxWorkers < 1 || req.MaxWorkers > 8 {
 		return BatchStartResponse{}, &ApplicationError{Code: "INVALID_MAX_WORKERS", Detail: "maxWorkers must be between 1 and 8"}
 	}
+	namingConfig := namingConfigFromDTO(req.Naming)
+	if err := naming.Validate(namingConfig); err != nil {
+		return BatchStartResponse{}, &ApplicationError{Code: "INVALID_NAMING_CONFIG", Detail: err.Error()}
+	}
+	req.Naming = &NamingConfigDTO{Mode: string(namingConfig.Mode), CustomTemplate: namingConfig.CustomTemplate}
 	a.mu.Lock()
 	if a.running {
 		a.mu.Unlock()
@@ -258,7 +299,7 @@ func (a *Application) CancelBatch() error {
 
 func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest) {
 	observer := batch.ObserverFunc(func(event batch.Event) error { a.emitEvent(id, event); return nil })
-	request := batch.Request{Inputs: append([]string(nil), req.Inputs...), OutputRoot: req.OutputRoot, MaxWorkers: req.MaxWorkers}
+	request := batch.Request{Inputs: append([]string(nil), req.Inputs...), OutputRoot: req.OutputRoot, MaxWorkers: req.MaxWorkers, Naming: namingConfigFromDTO(req.Naming)}
 	engine := &observedEngine{runner: a.engine, observer: observer}
 	summary, err := engine.Run(ctx, request)
 	complete := BatchCompleteEvent{BatchID: id, Cancelled: errors.Is(ctx.Err(), context.Canceled), Snapshot: snapshotFrom(summary)}
@@ -364,7 +405,7 @@ func (a *Application) emitEvent(id uint64, event batch.Event) {
 }
 
 func itemFrom(r batch.Result) QueueItem {
-	return QueueItem{Index: r.Index, SourcePath: r.SourcePath, SourceDisplayName: filepath.Base(r.SourcePath), RelativePath: r.RelativePath, OutputPath: r.OutputPath, Family: r.DetectedFamily, Variant: r.Variant, DecodedFormat: r.DecodedAudioFormat, SourceBytes: r.SourceBytes, SourceBytesKnown: r.SourceBytesKnown, BytesWritten: r.BytesWritten, Status: string(r.Status), ErrorCode: r.ErrorCode, ErrorDetail: r.ErrorDetail}
+	return QueueItem{Index: r.Index, SourcePath: r.SourcePath, SourceDisplayName: filepath.Base(r.SourcePath), RelativePath: r.RelativePath, OutputPath: r.OutputPath, Family: r.DetectedFamily, Variant: r.Variant, DecodedFormat: r.DecodedAudioFormat, SourceBytes: r.SourceBytes, SourceBytesKnown: r.SourceBytesKnown, BytesWritten: r.BytesWritten, Status: string(r.Status), ErrorCode: r.ErrorCode, ErrorDetail: r.ErrorDetail, NamingFallback: r.NamingFallback, NamingFallbackReason: r.NamingFallbackReason}
 }
 func snapshotFrom(s batch.Summary) BatchSnapshot {
 	out := BatchSnapshot{DiscoveredRegularFiles: s.DiscoveredRegularFiles, EligibleEncrypted: s.EligibleEncrypted, Successes: s.Successes, SkippedNotEncrypted: s.SkippedNotEncrypted, SkippedExisting: s.SkippedExisting, BlockedExternalKey: s.BlockedExternalKey, BlockedExternalDatabase: s.BlockedExternalDatabase, Unsupported: s.Unsupported, Unknown: s.Unknown, Failed: s.Failed, Cancelled: s.Cancelled, BytesWritten: s.BytesWritten, Duration: int64(s.Duration), Results: make([]QueueItem, len(s.Results))}

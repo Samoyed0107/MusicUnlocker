@@ -1,6 +1,7 @@
 # Metadata-aware output naming
 
-Stage 5E1 provides offline core naming; GUI controls remain Stage 5E2.
+Stage 5E1 provides offline core naming. Stage 5E2 exposes the same naming
+configuration through the desktop GUI.
 
 Modes are `KEEP_SOURCE` (default), `TITLE`, `ARTIST_TITLE`, `TITLE_ARTIST`,
 `TRACK_TITLE`, `ARTIST_ALBUM_TRACK_TITLE`, and `CUSTOM`. Custom templates accept
@@ -23,3 +24,23 @@ files in the destination directory; final naming and no-replace hard-link commit
 are ordered by queue index. Thus identical metadata names are owned by the
 earliest queue item, independent of worker completion timing. Cancellation and
 failed finalization remove uncommitted temporary files.
+
+## Desktop GUI
+
+The File naming control offers Keep source name (the default), Title, Artist -
+Title, Title - Artist, Track - Title, Artist - Album - Track - Title, and
+Custom template. Custom templates use exactly the tokens listed above. The
+decoded audio extension is added automatically; the GUI does not choose a
+format or permit directory separators.
+
+The custom field is validated by the Go naming backend. Unknown placeholders,
+unclosed braces, empty templates, and overlong templates are shown inline and
+cannot be used to start a batch. The GUI shows a backend-rendered illustrative
+Example using neutral sample metadata; it is not a prediction of encrypted
+input metadata. The finalized Batch Result output path remains authoritative.
+
+Naming mode and the last valid custom template are persisted alongside worker,
+theme, and output-suggestion preferences. Missing or invalid naming fields
+recover to KEEP_SOURCE without preventing startup. Naming settings are
+captured in each Batch Request, so later preference changes do not affect a
+running batch. Metadata fallback remains a successful decode.

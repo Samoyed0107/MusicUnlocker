@@ -81,7 +81,8 @@ ambiguous and leave output unset. Browse marks the destination as an explicit
 override; it is not changed by later queue edits. Reset suggestion clears the
 override.
 
-Preferences contain only `MaxWorkers`, `Theme`, and `AutoSuggestOutput` and
+Preferences contain only `MaxWorkers`, `Theme`, `AutoSuggestOutput`,
+`NamingMode`, and `CustomNamingTemplate` and
 are stored as JSON at the per-user `os.UserConfigDir()/MusicUnlocker/preferences.json`.
 The file is bounded, unknown fields are ignored, invalid values use defaults,
 malformed files do not crash the app, and writes use a same-directory
@@ -130,6 +131,16 @@ tray support, installer packaging, file association, or explicit theme
 selector. Physical Explorer drag-to-EXE still requires manual verification in
 a real Windows installation; automated tests do not perform WebView E2E or
 decode real music.
+
+## Stage 5E2 file naming
+
+The facade exposes `NamingConfigDTO` and `ValidateNamingConfig`. The latter
+returns validity, a concise backend error, and a sample filename rendered by
+`internal/naming`; React does not parse templates. `BatchStartRequest` carries
+the validated naming snapshot, and result DTOs preserve the authoritative
+final output path plus structured metadata-fallback fields. The GUI disables
+naming controls while a batch runs or cancels. Preferences default and recover
+to `KEEP_SOURCE` when naming fields are missing or invalid.
 
 ## Stage 5C audio preview
 

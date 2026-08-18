@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"musicunlocker/internal/batch"
+	"musicunlocker/internal/naming"
 )
 
 type fakeSink struct {
@@ -40,11 +41,13 @@ type fakeEngine struct {
 	observer batch.Observer
 	mu       sync.Mutex
 	calls    int
+	requests []batch.Request
 }
 
-func (e *fakeEngine) Run(ctx context.Context, _ batch.Request) (batch.Summary, error) {
+func (e *fakeEngine) Run(ctx context.Context, req batch.Request) (batch.Summary, error) {
 	e.mu.Lock()
 	e.calls++
+	e.requests = append(e.requests, req)
 	e.mu.Unlock()
 	if e.started != nil {
 		close(e.started)
@@ -113,6 +116,55 @@ func TestInvalidWorkers(t *testing.T) {
 	for _, n := range []int{0, 9, -1} {
 		if _, err := a.StartBatch(BatchStartRequest{Inputs: []string{"x"}, OutputRoot: "out", MaxWorkers: n}); err == nil {
 			t.Fatalf("workers %d accepted", n)
+		}
+	}
+}
+
+func TestNamingValidationExamplesAndErrors(t *testing.T) {
+	for _, tc := range []struct{ mode, template, example string }{
+		{"ARTIST_TITLE", "", "Artist - Song Title.mp3"},
+		{"TITLE_ARTIST", "", "Song Title - Artist.mp3"},
+		{"TRACK_TITLE", "", "05 - Song Title.mp3"},
+		{"CUSTOM", "{artist} - {title}", "Artist - Song Title.mp3"},
+	} {
+		got := ValidateNamingConfig(NamingConfigDTO{Mode: tc.mode, CustomTemplate: tc.template})
+		if !got.Valid || got.Example != tc.example {
+			t.Fatalf("%s: %+v", tc.mode, got)
+		}
+	}
+	if got := ValidateNamingConfig(NamingConfigDTO{Mode: "CUSTOM", CustomTemplate: "{unknown}"}); got.Valid || got.Error == "" {
+		t.Fatalf("invalid custom accepted: %+v", got)
+	}
+	if got := ValidateNamingConfig(NamingConfigDTO{}); !got.Valid || got.Example != "source-file.mp3" {
+		t.Fatalf("omitted config: %+v", got)
+	}
+}
+
+func TestBatchCapturesNamingConfig(t *testing.T) {
+	e := &fakeEngine{}
+	a := New(e, &fakeSink{}, nil)
+	request := validRequest()
+	request.Naming = &NamingConfigDTO{Mode: "CUSTOM", CustomTemplate: "{title}"}
+	if _, err := a.StartBatch(request); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.After(time.Second)
+	for {
+		e.mu.Lock()
+		if len(e.requests) == 1 {
+			got := e.requests[0].Naming
+			e.mu.Unlock()
+			if got.Mode != naming.Custom || got.CustomTemplate != "{title}" {
+				t.Fatalf("naming=%+v", got)
+			}
+			return
+		}
+		e.mu.Unlock()
+		select {
+		case <-deadline:
+			t.Fatal("timeout waiting for request")
+		default:
+			time.Sleep(time.Millisecond)
 		}
 	}
 }

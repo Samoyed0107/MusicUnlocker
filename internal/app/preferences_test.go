@@ -45,3 +45,22 @@ func TestPreferencesMalformedAndInvalidValuesFallback(t *testing.T) {
 		t.Fatalf("sanitized=%+v err=%v", got, err)
 	}
 }
+
+func TestPreferencesNamingDefaultsAndInvalidRecovery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	store := &filePreferencesStore{path: path}
+	if err := os.WriteFile(path, []byte(`{"maxWorkers":4,"theme":"dark","autoSuggestOutput":false,"namingMode":"CUSTOM","customNamingTemplate":"{bad}"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil || got.NamingMode != "KEEP_SOURCE" || got.MaxWorkers != 4 || got.Theme != "dark" || got.AutoSuggestOutput {
+		t.Fatalf("recovery=%+v err=%v", got, err)
+	}
+	if err := store.Save(Preferences{MaxWorkers: 2, Theme: "light", AutoSuggestOutput: true, NamingMode: "CUSTOM", CustomNamingTemplate: "{artist} - {title}"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = store.Load()
+	if err != nil || got.NamingMode != "CUSTOM" || got.CustomNamingTemplate != "{artist} - {title}" {
+		t.Fatalf("custom=%+v err=%v", got, err)
+	}
+}
