@@ -1,5 +1,5 @@
-// Package batch provides the UI-independent, sequential batch processing
-// engine used by future command-line and GUI frontends.
+// Package batch provides the UI-independent batch processing engine used by
+// command-line and future GUI frontends.
 package batch
 
 import (
@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"musicunlocker/internal/decode"
+	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
 )
 
@@ -38,9 +40,11 @@ const (
 type Request struct {
 	Inputs     []string `json:"inputs"`
 	OutputRoot string   `json:"outputRoot"`
+	MaxWorkers int      `json:"maxWorkers"`
 }
 
 type Result struct {
+	Index              int    `json:"index"`
 	SourcePath         string `json:"sourcePath"`
 	SourceRoot         string `json:"sourceRoot,omitempty"`
 	RelativePath       string `json:"relativePath,omitempty"`
@@ -49,6 +53,8 @@ type Result struct {
 	Variant            string `json:"variant,omitempty"`
 	DecodedAudioFormat string `json:"decodedAudioFormat,omitempty"`
 	BytesWritten       int64  `json:"bytesWritten"`
+	SourceBytes        int64  `json:"sourceBytes,omitempty"`
+	SourceBytesKnown   bool   `json:"sourceBytesKnown,omitempty"`
 	Status             Status `json:"status"`
 	ErrorCode          string `json:"errorCode,omitempty"`
 	ErrorDetail        string `json:"errorDetail,omitempty"`
@@ -76,12 +82,18 @@ type EventType string
 const (
 	EventDiscovered EventType = "DISCOVERED"
 	EventStarted    EventType = "STARTED"
+	EventProgress   EventType = "PROGRESS"
 	EventFinished   EventType = "FINISHED"
 )
 
 type Event struct {
-	Type   EventType `json:"type"`
-	Result Result    `json:"result"`
+	Type             EventType `json:"type"`
+	Index            int       `json:"index"`
+	SourcePath       string    `json:"sourcePath"`
+	BytesWritten     int64     `json:"bytesWritten"`
+	SourceBytes      int64     `json:"sourceBytes,omitempty"`
+	SourceBytesKnown bool      `json:"sourceBytesKnown,omitempty"`
+	Result           Result    `json:"result"`
 }
 
 type Observer interface{ Observe(Event) error }
@@ -97,95 +109,229 @@ type Engine struct {
 }
 
 func (e Engine) Run(ctx context.Context, req Request) (Summary, error) {
-	started := time.Now()
-	var summary Summary
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if strings.TrimSpace(req.OutputRoot) == "" || len(req.Inputs) == 0 {
-		return summary, errors.New("batch: at least one input and an output root are required")
+	if req.MaxWorkers < 0 {
+		return Summary{}, errors.New("batch: max workers cannot be negative")
 	}
+	if strings.TrimSpace(req.OutputRoot) == "" || len(req.Inputs) == 0 {
+		return Summary{}, errors.New("batch: at least one input and an output root are required")
+	}
+	started := time.Now()
 	outputRoot, err := filepath.Abs(filepath.Clean(req.OutputRoot))
 	if err != nil {
-		return summary, fmt.Errorf("batch: output root: %w", err)
+		return Summary{}, fmt.Errorf("batch: output root: %w", err)
 	}
 	files, discovery := discover(req.Inputs)
-	summary.DiscoveredRegularFiles = len(files)
-	for _, item := range files {
-		e.emit(Event{Type: EventDiscovered, Result: item.result})
+	items := make([]*queueItem, 0, len(discovery)+len(files))
+	for _, result := range discovery {
+		items = append(items, &queueItem{result: result})
 	}
-	for _, item := range discovery {
-		summary.Results = append(summary.Results, item)
-		account(&summary, item)
+	for i := range files {
+		items = append(items, &queueItem{file: &files[i], result: files[i].result})
+	}
+	for index, item := range items {
+		item.result.Index = index
+	}
+	for _, item := range files {
+		item.result.Index = indexOfFile(items, item.path)
+		e.emit(eventFor(EventDiscovered, item.result))
 	}
 	if e.Decoder == nil {
 		e.Decoder = decode.DecodeFile
 	}
-	for i, item := range files {
+	workers := req.MaxWorkers
+	if workers == 0 {
+		workers = 1
+	}
+	for i := range items {
+		item := items[i]
+		if item.file == nil {
+			continue
+		}
 		if err := ctx.Err(); err != nil {
-			for _, remaining := range files[i:] {
-				r := cancelledResult(remaining.result)
-				summary.Results = append(summary.Results, r)
-				account(&summary, r)
-				e.emit(Event{Type: EventFinished, Result: r})
+			for _, remaining := range items[i:] {
+				if remaining.file != nil && remaining.result.Status == "" {
+					finishCancelled(e, remaining)
+				}
 			}
 			break
 		}
-		r := item.result
-		e.emit(Event{Type: EventStarted, Result: r})
-		p, probeErr := probe.ProbeFile(item.path)
+		p, probeErr := probe.ProbeFile(item.file.path)
 		if probeErr != nil {
-			r.Status, r.ErrorCode, r.ErrorDetail = StatusFailed, CodeDiscoveryError, probeErr.Error()
-			summary.Results = append(summary.Results, r)
-			account(&summary, r)
-			e.emit(Event{Type: EventFinished, Result: r})
+			item.result.Status, item.result.ErrorCode, item.result.ErrorDetail = StatusFailed, CodeDiscoveryError, probeErr.Error()
+			e.emit(eventFor(EventStarted, item.result))
+			e.emit(eventFor(EventFinished, item.result))
 			continue
 		}
-		r.DetectedFamily, r.Variant = string(p.Family), p.Variant
+		item.probe = p
+		item.result.DetectedFamily, item.result.Variant = string(p.Family), p.Variant
+		if info, statErr := os.Stat(item.file.path); statErr == nil {
+			item.result.SourceBytes, item.result.SourceBytesKnown = info.Size(), true
+		}
 		if p.Family == probe.FamilyRaw {
-			r.Status = StatusSkippedNotEncrypted
-			summary.Results = append(summary.Results, r)
-			account(&summary, r)
-			e.emit(Event{Type: EventFinished, Result: r})
+			item.result.Status = StatusSkippedNotEncrypted
+			e.emit(eventFor(EventStarted, item.result))
+			e.emit(eventFor(EventFinished, item.result))
 			continue
 		}
 		if p.Confidence != probe.ConfidenceConfirmed || p.Family == probe.FamilyUnknown {
-			r.Status, r.ErrorCode, r.ErrorDetail = StatusUnknown, decodeCode(decode.CodeUnknownFormat), "content was not recognised as an encrypted format"
-			summary.Results = append(summary.Results, r)
-			account(&summary, r)
-			e.emit(Event{Type: EventFinished, Result: r})
+			item.result.Status, item.result.ErrorCode, item.result.ErrorDetail = StatusUnknown, decodeCode(decode.CodeUnknownFormat), "content was not recognised as an encrypted format"
+			e.emit(eventFor(EventStarted, item.result))
+			e.emit(eventFor(EventFinished, item.result))
 			continue
 		}
-		summary.EligibleEncrypted++
-		outDir := filepath.Join(outputRoot, item.outputRelativeDir)
-		decoded, decodeErr := e.Decoder(ctx, item.path, decode.Options{OutDir: outDir})
-		r.OutputPath, r.DecodedAudioFormat, r.BytesWritten = decoded.OutputPath, decoded.DecodedFormat, decoded.BytesWritten
-		if decodeErr != nil {
-			r.Status, r.ErrorCode, r.ErrorDetail = mapError(decodeErr)
-			if errors.Is(decodeErr, context.Canceled) || errors.Is(decodeErr, context.DeadlineExceeded) {
-				r.Status = StatusCancelled
+		item.runnable = true
+		item.targetKey, _ = outputplan.TargetKey(outputplan.Request{InputPath: item.file.path, OutputDir: filepath.Join(outputRoot, item.file.outputRelativeDir), Probe: p})
+	}
+	if ctx.Err() == nil {
+		runGroups(ctx, e, items, workers, outputRoot)
+	} else {
+		for _, item := range items {
+			if item.file != nil && item.runnable && item.result.Status == "" {
+				finishCancelled(e, item)
 			}
-			summary.Results = append(summary.Results, r)
-			account(&summary, r)
-			e.emit(Event{Type: EventFinished, Result: r})
-			if r.Status == StatusCancelled {
-				for _, remaining := range files[i+1:] {
-					cr := cancelledResult(remaining.result)
-					summary.Results = append(summary.Results, cr)
-					account(&summary, cr)
-					e.emit(Event{Type: EventFinished, Result: cr})
-				}
-				break
-			}
-			continue
 		}
-		r.Status = StatusSuccess
-		summary.Results = append(summary.Results, r)
-		account(&summary, r)
-		e.emit(Event{Type: EventFinished, Result: r})
+	}
+	var summary Summary
+	summary.DiscoveredRegularFiles = len(files)
+	for _, item := range items {
+		if item.result.Status == "" {
+			item.result = cancelledResult(item.result)
+		}
+		summary.Results = append(summary.Results, item.result)
+		if item.runnable {
+			summary.EligibleEncrypted++
+		}
+		account(&summary, item.result)
 	}
 	summary.Duration = time.Since(started)
 	return summary, nil
+}
+
+type queueItem struct {
+	file      *discovered
+	result    Result
+	probe     probe.Result
+	runnable  bool
+	targetKey string
+}
+
+type workGroup struct {
+	items []*queueItem
+}
+
+func indexOfFile(items []*queueItem, path string) int {
+	for _, item := range items {
+		if item.file != nil && item.file.path == path {
+			return item.result.Index
+		}
+	}
+	return 0
+}
+
+func eventFor(kind EventType, result Result) Event {
+	return Event{Type: kind, Index: result.Index, SourcePath: result.SourcePath, BytesWritten: result.BytesWritten, SourceBytes: result.SourceBytes, SourceBytesKnown: result.SourceBytesKnown, Result: result}
+}
+
+func finishCancelled(e Engine, item *queueItem) {
+	if item.result.Status != "" {
+		return
+	}
+	item.result = cancelledResult(item.result)
+	e.emit(eventFor(EventFinished, item.result))
+}
+
+func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string) {
+	groupsByKey := map[string]*workGroup{}
+	var groups []*workGroup
+	for _, item := range items {
+		if !item.runnable {
+			continue
+		}
+		key := canonicalKey(item.targetKey)
+		group := groupsByKey[key]
+		if group == nil {
+			group = &workGroup{}
+			groupsByKey[key] = group
+			groups = append(groups, group)
+		}
+		group.items = append(group.items, item)
+	}
+	if len(groups) == 0 {
+		return
+	}
+	if maxWorkers > len(groups) {
+		maxWorkers = len(groups)
+	}
+	jobs := make(chan *workGroup)
+	var wg sync.WaitGroup
+	for i := 0; i < maxWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for group := range jobs {
+				processGroup(ctx, e, group, outputRoot)
+			}
+		}()
+	}
+	dispatched := 0
+dispatchLoop:
+	for dispatched < len(groups) {
+		if ctx.Err() != nil {
+			break
+		}
+		select {
+		case jobs <- groups[dispatched]:
+			dispatched++
+		case <-ctx.Done():
+			break dispatchLoop
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	for _, group := range groups[dispatched:] {
+		for _, item := range group.items {
+			finishCancelled(e, item)
+		}
+	}
+}
+
+func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string) {
+	for position, item := range group.items {
+		if ctx.Err() != nil {
+			for _, remaining := range group.items[position:] {
+				finishCancelled(e, remaining)
+			}
+			return
+		}
+		e.emit(eventFor(EventStarted, item.result))
+		outDir := filepath.Join(outputRoot, item.file.outputRelativeDir)
+		progress := func(p decode.Progress) {
+			item.result.SourceBytes, item.result.SourceBytesKnown = p.SourceBytes, p.SourceBytesKnown
+			item.result.BytesWritten = p.BytesWritten
+			e.emit(eventFor(EventProgress, item.result))
+		}
+		decoded, decodeErr := e.Decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress})
+		item.result.OutputPath, item.result.DecodedAudioFormat, item.result.BytesWritten = decoded.OutputPath, decoded.DecodedFormat, decoded.BytesWritten
+		if decodeErr != nil {
+			item.result.Status, item.result.ErrorCode, item.result.ErrorDetail = mapError(decodeErr)
+			if errors.Is(decodeErr, context.Canceled) || errors.Is(decodeErr, context.DeadlineExceeded) {
+				item.result.Status = StatusCancelled
+			}
+			e.emit(eventFor(EventFinished, item.result))
+			if item.result.Status == StatusCancelled {
+				for _, remaining := range group.items[position+1:] {
+					finishCancelled(e, remaining)
+				}
+				return
+			}
+			continue
+		}
+		item.result.Status = StatusSuccess
+		e.emit(eventFor(EventFinished, item.result))
+	}
 }
 
 type discovered struct {

@@ -26,3 +26,7 @@
 - External-material requirements are batch statuses, not generic failures.
 - Batch directory traversal must not follow symlink loops and result ordering must be deterministic.
 - Batch processing preserves immutable sources and atomically written outputs.
+- Parallel batch execution must preserve deterministic result ordering.
+- Items sharing an output target namespace must be serialized in queue order.
+- Batch observer and progress APIs remain UI-independent.
+- Cancellation must wait for worker and filesystem cleanup before returning.

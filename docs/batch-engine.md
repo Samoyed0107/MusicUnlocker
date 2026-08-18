@@ -1,82 +1,131 @@
-# Sequential batch engine
+# Batch engine
 
-Stage 4A adds `internal/batch`, a UI-independent orchestration layer. Future
-CLI and Wails callers depend on this package; it depends on `internal/decode`
-and the existing probe/output-planning core. It does not import Wails,
-frontend code, CLI formatting, or upstream decoder packages.
+`internal/batch` is the UI-independent orchestration layer for the developer
+CLI and future GUI. It depends on `internal/decode`, probing, and the output
+planner; it does not import Wails, frontend code, or upstream decoder types.
 
-`Engine.Run` accepts one or more files or directories and an explicit
-`OutputRoot`. Directory inputs are traversed recursively and processed in
-deterministic path order. Stage 4A is deliberately sequential: there is no
-worker pool or byte-level progress.
+## Execution model
 
-## Discovery and paths
+`Engine.Run` accepts files/directories, an explicit `OutputRoot`, and
+`MaxWorkers`:
 
-Only regular files are selected. Directory symlinks/reparse-point-like links
-are not followed, and top-level symlinks are reported as discovery failures.
-Canonical input files are deduplicated. Missing top-level inputs, permission
-errors, and other scan errors become structured `FAILED` results with
-`DISCOVERY_ERROR`; they do not prevent other roots from being processed.
+- `0` means one worker for API compatibility;
+- `1` preserves sequential Stage 4A execution;
+- values greater than one use a fixed bounded worker pool;
+- negative values are invalid.
 
-Content probing happens before decoding. Confirmed raw MP3/FLAC/etc. files are
-`SKIPPED_NOT_ENCRYPTED`; unknown content is `UNKNOWN`. A misleading filename
-does not override confirmed content evidence.
+The scheduler never creates one goroutine per file. It creates at most
+`min(MaxWorkers, runnable target-key groups)` workers. Independent target keys
+can overlap; items sharing a target key are processed by one ordered group.
 
-For one directory root, its root itself is omitted and relative subdirectories
-are preserved:
+Discovery remains recursive, deterministic, regular-file-only, canonical-path
+deduplicated, and symlink-loop-safe. Normal raw audio is skipped and unknown
+content is not decoded.
 
-```text
-Encrypted/A/song.kgm -> Unlocked/A/song.mp3
-```
+## Deterministic results and events
 
-For multiple directory roots, each root basename is retained. If root
-basenames collide, canonical root paths are sorted and receive `Music (1)`,
-`Music (2)`, and so on. Direct file inputs normally go directly under
-`OutputRoot`; exact direct-file basename collisions use the source parent
-basename as a namespace.
+Every queue item has a stable zero-based `Index`. `Summary.Results` is assembled
+from the indexed queue after all workers have joined, so it remains in
+discovery order even when completion order differs. Runtime `FINISHED` event
+order is intentionally nondeterministic under concurrency.
 
-## Results and events
+The optional observer receives structured events:
 
-Each result includes source/root/relative paths, detected family and variant,
-decoded format, bytes written, status, typed error code, and detail. The
-summary retains ordered results and reconciled counts.
+| Event | Contract |
+| --- | --- |
+| `DISCOVERED` | Emitted in deterministic discovery order. |
+| `STARTED` | Identifies the item beginning work; events may overlap. |
+| `PROGRESS` | Contains one item's stable index and bytes written so far. |
+| `FINISHED` | Contains the final item result; completion order is not promised. |
+
+Observer errors and panics are isolated. No event contains preformatted GUI
+strings or percentages.
+
+## Progress
+
+`internal/decode.Options.Progress` accepts a UI-independent
+`decode.Progress` callback. It reports:
+
+- `BytesWritten`: bytes successfully written to the atomic temporary output;
+- `SourceBytes` and `SourceBytesKnown`: optional source file size metadata.
+
+Source size is not an exact decoded-output total. The decoder emits an initial
+zero progress state and then bounded copy-chunk updates. Values are monotonic;
+successful completion's final callback matches `decode.Result.BytesWritten`.
+Callback panics are ignored and cannot corrupt output. Cancellation or stream
+failure does not invent a successful final total.
+
+Batch bridges these callbacks to `PROGRESS` events with queue index, source
+path, bytes written, and optional source size. Progress events from different
+items may interleave.
+
+## Output paths and collisions
+
+One directory root preserves relative directories. Multiple roots retain root
+basenames; colliding basenames receive deterministic suffixes such as
+`Music (1)` and `Music (2)`. Direct-file basename collisions use deterministic
+parent namespaces.
+
+Before decoding, the batch derives a target key from the destination directory
+and the output planner's clean wrapper-stripped stem. The decoded extension is
+deliberately omitted. Same-key items form an ordered group, so the earlier
+queue item always gets the first opportunity. If it creates the same final
+destination, a later item becomes `SKIPPED_OUTPUT_EXISTS`; if it uses another
+extension, it may succeed after waiting.
+
+The decoder finalizes with an atomic no-replace hard-link operation from its
+temporary file. A destination that appears during finalization maps to
+`OUTPUT_EXISTS`; it is never silently replaced. The temporary file is cleaned
+on failure. This uses the standard library and assumes the temporary and final
+paths share a filesystem, as they do because both are inside the output
+directory.
+
+## Statuses and discovery errors
+
+`DISCOVERY_ERROR` is not a separate status. It is the machine-readable
+`ErrorCode` on a `FAILED` result for a top-level or walked filesystem item.
+Such results are retained in `Summary.Results`, counted as failures, rendered
+distinctly by the CLI, serialized distinctly in JSON, and produce a nonzero
+exit code.
+
+The statuses are:
 
 | Status | Meaning |
 | --- | --- |
 | `SUCCESS` | Decoded and atomically written. |
 | `SKIPPED_NOT_ENCRYPTED` | Confirmed normal raw audio. |
-| `SKIPPED_OUTPUT_EXISTS` | Existing output; equivalent to `OUTPUT_EXISTS`. |
+| `SKIPPED_OUTPUT_EXISTS` | Existing destination; equivalent to `OUTPUT_EXISTS`. |
 | `BLOCKED_EXTERNAL_KEY` | `QMC_EXTERNAL_KEY_REQUIRED`. |
 | `BLOCKED_EXTERNAL_DATABASE` | `KGG_DATABASE_REQUIRED`. |
-| `UNSUPPORTED` | `UNSUPPORTED_ENCRYPTED_FORMAT`. |
-| `UNKNOWN` | Content is not a recognised encrypted format. |
+| `UNSUPPORTED` | Unsupported encrypted decoder condition. |
+| `UNKNOWN` | Content or decoded audio format is unknown. |
 | `FAILED` | Discovery or other processing failure. |
-| `CANCELLED` | Not started, or interrupted by context cancellation. |
+| `CANCELLED` | Not started or interrupted by context cancellation. |
 
-An optional observer receives `DISCOVERED`, `STARTED`, and `FINISHED` events
-with structured results. Observer errors and panics are isolated and cannot
-affect processing or output files.
+## Cancellation
 
-Cancellation stops starting new files, propagates to the current decoder, and
-marks all remaining discovered files `CANCELLED`. Successful outputs already
-written remain in place and sources are never deleted.
+Cancellation stops dispatching new groups, propagates the same context to all
+active `DecodeFile` calls, waits for workers to join, and marks undispatched
+items and same-key waiters `CANCELLED`. Successful results and outputs remain
+untouched. `Run` does not return while workers can still mutate the filesystem.
+
+Pause/resume is intentionally not implemented.
 
 ## Developer CLI
 
 ```text
-go run ./cmd/musicbatch --out-dir D:/Unlocked input-dir another.kgm
-go run ./cmd/musicbatch --out-dir D:/Unlocked --json input-dir
+go run ./cmd/musicbatch --out-dir D:/Unlocked --jobs 1 input-dir
+go run ./cmd/musicbatch --out-dir D:/Unlocked --jobs 2 input-dir another.kgm
+go run ./cmd/musicbatch --out-dir D:/Unlocked --jobs 2 --json input-dir
 ```
 
-Human mode prints one concise line per result and a summary. JSON mode uses
-the explicit `encoding/json` representation of `Summary`; statuses and typed
-error codes are separate from human-readable details.
+The default is one worker. Human output is printed from final ordered results,
+not worker completion logs. JSON uses the explicit `encoding/json` Summary
+model; transient progress events are not serialized. Exit codes are `0` when
+there are no `FAILED` results, `1` for failed results, `2` for invalid CLI
+requests, and `3` for cancellation. Skips and blocked external material are
+non-fatal.
 
-Exit code `0` means no `FAILED` results; skipped, blocked, unsupported, and
-unknown results remain visible but are non-fatal. Exit code `1` means at least
-one failed result, `3` means cancellation, and `2` means an invalid CLI
-request.
-
-Real-sample validation remains an independent backlog. Stage 4A does not
-change any status in `docs/real-validation.md`, acquire external keys or
-databases, add decoder families, or require copyrighted samples.
+Stage 4B does not change `docs/real-validation.md`, add decoder families,
+acquire external keys/databases, use FFmpeg/network metadata, or require real
+music samples. There is no GUI or live CLI progress display yet.

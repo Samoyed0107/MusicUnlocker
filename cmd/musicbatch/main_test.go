@@ -41,3 +41,15 @@ func TestInvalidRequestExitCode(t *testing.T) {
 		t.Fatalf("code=%d err=%q", code, errOut.String())
 	}
 }
+
+func TestInvalidJobsExitCode(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "normal.mp3")
+	if err := os.WriteFile(input, []byte("ID3"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--out-dir", filepath.Join(dir, "out"), "--jobs", "0", input}, &out, &errOut); code != 2 {
+		t.Fatalf("code=%d stderr=%q", code, errOut.String())
+	}
+}

@@ -55,3 +55,17 @@ func TestPlanSourceConflict(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestTargetKeyOmitsDecodedExtension(t *testing.T) {
+	kgm, err := TargetKey(Request{InputPath: "foo.kgm", OutputDir: `D:\out`, Probe: probe.Result{Family: probe.FamilyKugou}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kgma, err := TargetKey(Request{InputPath: "foo.kgma", OutputDir: `D:\out`, Probe: probe.Result{Family: probe.FamilyKugou}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kgm != kgma {
+		t.Fatalf("keys differ: %q vs %q", kgm, kgma)
+	}
+}

@@ -19,6 +19,16 @@ type Request struct {
 	DecodedFormat string
 }
 
+// TargetKey returns the conservative queue collision key for a request. The
+// key deliberately omits decoded format, so same-stem outputs are serialized
+// even when their final extensions could differ.
+func TargetKey(request Request) (string, error) {
+	if request.InputPath == "" || request.OutputDir == "" {
+		return "", errors.New("input path and output directory are required")
+	}
+	return filepath.Join(request.OutputDir, cleanBase(filepath.Base(request.InputPath), request.Probe)), nil
+}
+
 // Plan returns a clean, conservative destination name. It removes only
 // recognised encrypted wrappers and their terminal copy counters.
 func Plan(request Request) (string, error) {

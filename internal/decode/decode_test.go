@@ -137,3 +137,54 @@ func TestResolverTypedStates(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeProgressIsMonotonicAndIncludesPrefix(t *testing.T) {
+	in := writeInput(t, "progress.kgm", []byte("encrypted source"))
+	var progress []Progress
+	data := append([]byte("ID3"), bytes.Repeat([]byte{'x'}, 100)...)
+	result, err := DecodeFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: data}, Progress: func(p Progress) { progress = append(progress, p) }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(progress) < 2 || progress[len(progress)-1].BytesWritten != result.BytesWritten || result.BytesWritten != int64(len(data)) {
+		t.Fatalf("progress=%#v result=%#v", progress, result)
+	}
+	last := int64(0)
+	for _, p := range progress {
+		if p.BytesWritten < last || p.BytesWritten > result.BytesWritten {
+			t.Fatalf("non-monotonic progress=%#v", progress)
+		}
+		last = p.BytesWritten
+	}
+	if !progress[0].SourceBytesKnown || progress[0].SourceBytes == 0 {
+		t.Fatalf("source size missing: %#v", progress[0])
+	}
+}
+
+func TestDecodeProgressCancellationHasNoFakeFinalTotal(t *testing.T) {
+	in := writeInput(t, "cancel-progress.kgm", []byte("encrypted source"))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var progress []Progress
+	_, err := DecodeFile(ctx, in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: append([]byte("ID3"), bytes.Repeat([]byte{'x'}, 100)...)}, Progress: func(p Progress) { progress = append(progress, p) }})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
+	}
+	for _, p := range progress {
+		if p.BytesWritten != 0 {
+			t.Fatalf("fake final progress: %#v", progress)
+		}
+	}
+}
+
+func TestDecodeProgressCallbackPanicDoesNotCorruptOutput(t *testing.T) {
+	in := writeInput(t, "panic-progress.kgm", []byte("encrypted source"))
+	data := append([]byte("ID3"), []byte("payload")...)
+	result, err := DecodeFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: data}, Progress: func(Progress) { panic("observer") }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(result.OutputPath); err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("output=%q err=%v", got, err)
+	}
+}

@@ -23,9 +23,16 @@ type Input struct {
 
 type Resolver interface{ Resolve(*Input) (Stream, error) }
 
+type Progress struct {
+	BytesWritten     int64
+	SourceBytes      int64
+	SourceBytesKnown bool
+}
+
 type Options struct {
 	OutDir   string
 	Resolver Resolver
+	Progress func(Progress)
 }
 
 type Result struct {
@@ -48,6 +55,12 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 		return result, err
 	}
 	defer f.Close()
+	var sourceBytes int64
+	sourceBytesKnown := false
+	if info, statErr := f.Stat(); statErr == nil {
+		sourceBytes, sourceBytesKnown = info.Size(), true
+	}
+	emitProgress(options.Progress, Progress{SourceBytes: sourceBytes, SourceBytesKnown: sourceBytesKnown})
 	p, err := probe.Probe(f, filepath.Base(inputPath))
 	if err != nil {
 		return result, err
@@ -99,7 +112,9 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 	tmpName := tmp.Name()
 	cleanup := func() { _ = tmp.Close(); _ = os.Remove(tmpName) }
 	full := io.MultiReader(bytes.NewReader(prefix), stream)
-	result.BytesWritten, err = copyContext(ctx, tmp, full)
+	result.BytesWritten, err = copyContext(ctx, tmp, full, func(bytesWritten int64) {
+		emitProgress(options.Progress, Progress{BytesWritten: bytesWritten, SourceBytes: sourceBytes, SourceBytesKnown: sourceBytesKnown})
+	})
 	if err == nil {
 		err = tmp.Sync()
 	}
@@ -110,14 +125,20 @@ func DecodeFile(ctx context.Context, inputPath string, options Options) (Result,
 		cleanup()
 		return result, err
 	}
-	if err = os.Rename(tmpName, outputPath); err != nil {
+	if err = os.Link(tmpName, outputPath); err != nil {
 		cleanup()
+		if errors.Is(err, os.ErrExist) {
+			return result, coded(CodeOutputExists, errors.New("output appeared during finalization: "+outputPath))
+		}
+		return result, err
+	}
+	if err = os.Remove(tmpName); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func copyContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, error) {
+func copyContext(ctx context.Context, dst io.Writer, src io.Reader, progress func(int64)) (int64, error) {
 	buf := make([]byte, 32*1024)
 	var total int64
 	for {
@@ -130,6 +151,9 @@ func copyContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, erro
 		if n > 0 {
 			written, err := dst.Write(buf[:n])
 			total += int64(written)
+			if written > 0 {
+				safeProgress(progress, total)
+			}
 			if err != nil {
 				return total, err
 			}
@@ -144,4 +168,24 @@ func copyContext(ctx context.Context, dst io.Writer, src io.Reader) (int64, erro
 			return total, readErr
 		}
 	}
+}
+
+func emitProgress(callback func(Progress), progress Progress) {
+	if callback == nil {
+		return
+	}
+	func() {
+		defer func() { _ = recover() }()
+		callback(progress)
+	}()
+}
+
+func safeProgress(callback func(int64), bytesWritten int64) {
+	if callback == nil {
+		return
+	}
+	func() {
+		defer func() { _ = recover() }()
+		callback(bytesWritten)
+	}()
 }
