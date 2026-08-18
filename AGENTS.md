@@ -30,3 +30,7 @@
 - Items sharing an output target namespace must be serialized in queue order.
 - Batch observer and progress APIs remain UI-independent.
 - Cancellation must wait for worker and filesystem cleanup before returning.
+- Frontend code contains presentation and state-mapping logic only; core filesystem, discovery, output, and decode semantics stay in Go.
+- Wails-facing DTOs must not expose upstream decoder types or Go errors directly.
+- The GUI permits only one active batch at a time and uses the final batch-complete result as authoritative.
+- GUI queue rows correlate by the stable batch index; selected input paths remain distinct from discovered files.
