@@ -38,3 +38,7 @@ go run ./cmd/musicprobe --json -- <file>
 ```
 
 Human output is intended to be copied into bug reports. JSON output contains a `files` array with path, size, probe result, and an operational `error` field when opening or probing fails. Unknown formats are successful probes and exit with code 0; a missing or unreadable file makes the command exit nonzero.
+
+Filename hints conservatively normalize a terminal numeric copy counter such as `song.mgg0(1).flac` or `song.mgg0 (2).flac` only when removing it exposes a suffix registered by the decoder candidate system. This is hint extraction only and never changes the filesystem name; arbitrary title parentheses are not normalized.
+
+In JSON, unavailable optional format fields are `null`, never numeric sentinel values. Evidence objects use the stable lowercase fields `kind` and `detail`.

@@ -26,16 +26,21 @@ type jsonResult struct {
 	Family           probe.Family     `json:"family"`
 	Variant          string           `json:"variant"`
 	Confidence       probe.Confidence `json:"confidence"`
-	RawAudioFormat   string           `json:"rawAudioFormat"`
-	FooterType       string           `json:"footerType"`
+	RawAudioFormat   *string          `json:"rawAudioFormat"`
+	FooterType       *string          `json:"footerType"`
 	NeedsExternalKey bool             `json:"needsExternalKey"`
-	AudioOffset      uint32           `json:"audioOffset"`
-	CryptoVersion    uint32           `json:"cryptoVersion"`
-	CryptoSlot       uint32           `json:"cryptoSlot"`
-	TagVersion       uint32           `json:"tagVersion"`
-	TagSize          uint32           `json:"tagSize"`
+	AudioOffset      *uint32          `json:"audioOffset"`
+	CryptoVersion    *uint32          `json:"cryptoVersion"`
+	CryptoSlot       *uint32          `json:"cryptoSlot"`
+	TagVersion       *uint32          `json:"tagVersion"`
+	TagSize          *uint32          `json:"tagSize"`
 	ExtensionHints   []string         `json:"extensionHints"`
-	Evidence         []probe.Evidence `json:"evidence"`
+	Evidence         []jsonEvidence   `json:"evidence"`
+}
+
+type jsonEvidence struct {
+	Kind   string `json:"kind"`
+	Detail string `json:"detail"`
 }
 
 func main() {
@@ -95,13 +100,31 @@ func run(args []string, out, errOut io.Writer) int {
 }
 
 func toJSONResult(result probe.Result) *jsonResult {
+	var rawAudioFormat, footerType *string
+	if result.RawAudioFormat != "" {
+		rawAudioFormat = &result.RawAudioFormat
+	}
+	if result.FooterType != "" {
+		footerType = &result.FooterType
+	}
+	var audioOffset, cryptoVersion, cryptoSlot, tagVersion, tagSize *uint32
+	if result.Family == probe.FamilyKugou {
+		audioOffset, cryptoVersion, cryptoSlot = &result.AudioOffset, &result.CryptoVersion, &result.CryptoSlot
+	}
+	if result.FooterType == "MusicEx" {
+		tagVersion, tagSize = &result.TagVersion, &result.TagSize
+	}
+	evidence := make([]jsonEvidence, 0, len(result.Evidence))
+	for _, item := range result.Evidence {
+		evidence = append(evidence, jsonEvidence{Kind: item.Kind, Detail: item.Detail})
+	}
 	return &jsonResult{
 		Family: result.Family, Variant: result.Variant, Confidence: result.Confidence,
-		RawAudioFormat: result.RawAudioFormat, FooterType: result.FooterType,
-		NeedsExternalKey: result.NeedsExternalKey, AudioOffset: result.AudioOffset,
-		CryptoVersion: result.CryptoVersion, CryptoSlot: result.CryptoSlot,
-		TagVersion: result.TagVersion, TagSize: result.TagSize,
-		ExtensionHints: result.ExtensionHints, Evidence: result.Evidence,
+		RawAudioFormat: rawAudioFormat, FooterType: footerType,
+		NeedsExternalKey: result.NeedsExternalKey, AudioOffset: audioOffset,
+		CryptoVersion: cryptoVersion, CryptoSlot: cryptoSlot,
+		TagVersion: tagVersion, TagSize: tagSize,
+		ExtensionHints: result.ExtensionHints, Evidence: evidence,
 	}
 }
 
@@ -113,23 +136,23 @@ func writeHuman(out io.Writer, entry fileReport) {
 	}
 	result := entry.Result
 	fmt.Fprintf(out, "Family: %s\nVariant: %s\nConfidence: %s\n", result.Family, result.Variant, result.Confidence)
-	fmt.Fprintf(out, "RawAudioFormat: %s\nFooterType: %s\nNeedsExternalKey: %t\n", unavailable(result.RawAudioFormat), unavailable(result.FooterType), result.NeedsExternalKey)
-	fmt.Fprintf(out, "AudioOffset: %s\nCryptoVersion: %s\nCryptoSlot: %s\n", number(result.AudioOffset, result.Family == probe.FamilyKugou), number(result.CryptoVersion, result.Family == probe.FamilyKugou), number(result.CryptoSlot, result.Family == probe.FamilyKugou))
+	fmt.Fprintf(out, "RawAudioFormat: %s\nFooterType: %s\nNeedsExternalKey: %t\n", optionalString(result.RawAudioFormat), optionalString(result.FooterType), result.NeedsExternalKey)
+	fmt.Fprintf(out, "AudioOffset: %s\nCryptoVersion: %s\nCryptoSlot: %s\n", optionalNumber(result.AudioOffset), optionalNumber(result.CryptoVersion), optionalNumber(result.CryptoSlot))
 	fmt.Fprintf(out, "ExtensionHints:\n%sEvidence:\n%s", list(result.ExtensionHints), evidence(result.Evidence))
 }
 
-func unavailable(value string) string {
-	if value == "" {
+func optionalString(value *string) string {
+	if value == nil {
 		return "unavailable"
 	}
-	return value
+	return *value
 }
 
-func number(value uint32, meaningful bool) string {
-	if !meaningful {
+func optionalNumber(value *uint32) string {
+	if value == nil {
 		return "unavailable"
 	}
-	return fmt.Sprint(value)
+	return fmt.Sprint(*value)
 }
 
 func list(values []string) string {
@@ -143,7 +166,7 @@ func list(values []string) string {
 	return b.String()
 }
 
-func evidence(values []probe.Evidence) string {
+func evidence(values []jsonEvidence) string {
 	if len(values) == 0 {
 		return "  - unavailable\n"
 	}

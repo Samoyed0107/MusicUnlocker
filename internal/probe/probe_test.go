@@ -106,10 +106,23 @@ func TestExtensionChains(t *testing.T) {
 		encrypted string
 	}{
 		{"example.kgm.flac", ".kgm"}, {"example.mgg0.flac", ".mgg0"}, {"example.mflac0.flac", ".mflac0"},
+		{"example.kgm(1).flac", ".kgm"}, {"example.kgm (1).flac", ".kgm"},
+		{"example.mgg0(1).flac", ".mgg0"}, {"example.mgg0 (2).flac", ".mgg0"},
+		{"example.mflac0(12).flac", ".mflac0"},
 	} {
 		got := extensionHints(tt.name)
 		if len(got) < 2 || !contains(got, ".flac") || !contains(got, tt.encrypted) {
 			t.Fatalf("%s: %v", tt.name, got)
+		}
+	}
+}
+
+func TestExtensionHintsDoNotNormalizeArbitraryParentheses(t *testing.T) {
+	for _, name := range []string{"Song Title (1).flac", "Artist - Song (2024 Remaster).flac"} {
+		for _, suffix := range extensionHints(name) {
+			if suffix == ".kgm" || suffix == ".mgg0" || suffix == ".mflac0" {
+				t.Fatalf("%s produced false encrypted hint %s", name, suffix)
+			}
 		}
 	}
 }

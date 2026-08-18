@@ -89,6 +89,88 @@ func TestJSONMultipleFilesAndUnknown(t *testing.T) {
 	}
 }
 
+func TestJSONSchemaOptionalFieldsAndEvidence(t *testing.T) {
+	tests := []struct {
+		name  string
+		data  []byte
+		file  string
+		check func(t *testing.T, result map[string]any)
+	}{
+		{"kgm", syntheticKGM(), "sample.kgm(1).flac", func(t *testing.T, result map[string]any) {
+			if result["audioOffset"] != float64(1024) || result["cryptoVersion"] != float64(3) || result["cryptoSlot"] != float64(1) {
+				t.Fatalf("unexpected KGM numeric fields: %#v", result)
+			}
+			for _, field := range []string{"footerType", "tagVersion", "tagSize"} {
+				if result[field] != nil {
+					t.Fatalf("%s = %#v, want null", field, result[field])
+				}
+			}
+			if !containsString(result["extensionHints"], ".kgm") {
+				t.Fatalf("missing .kgm hint: %#v", result["extensionHints"])
+			}
+		}},
+		{"st tag", syntheticSTag(), "sample.mgg0(1).flac", func(t *testing.T, result map[string]any) {
+			if result["footerType"] != "STag" || result["needsExternalKey"] != true {
+				t.Fatalf("unexpected STag fields: %#v", result)
+			}
+			for _, field := range []string{"rawAudioFormat", "audioOffset", "cryptoVersion", "cryptoSlot", "tagVersion", "tagSize"} {
+				if result[field] != nil {
+					t.Fatalf("%s = %#v, want null", field, result[field])
+				}
+			}
+			evidence, ok := result["evidence"].([]any)
+			if !ok || len(evidence) == 0 {
+				t.Fatalf("missing evidence: %#v", result["evidence"])
+			}
+			item := evidence[0].(map[string]any)
+			if item["kind"] == nil || item["detail"] == nil || item["Kind"] != nil || item["Detail"] != nil {
+				t.Fatalf("unstable evidence schema: %#v", item)
+			}
+		}},
+		{"unknown", []byte("random"), "unknown.bin", func(t *testing.T, result map[string]any) {
+			if result["family"] != "unknown" || result["confidence"] != "unknown" {
+				t.Fatalf("unexpected unknown result: %#v", result)
+			}
+			for _, field := range []string{"rawAudioFormat", "footerType", "audioOffset", "cryptoVersion", "cryptoSlot", "tagVersion", "tagSize"} {
+				if result[field] != nil {
+					t.Fatalf("%s = %#v, want null", field, result[field])
+				}
+			}
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := writeFixture(t, tt.file, tt.data)
+			var out, errOut bytes.Buffer
+			if code := run([]string{"--json", path}, &out, &errOut); code != 0 {
+				t.Fatalf("exit %d: %s", code, errOut.String())
+			}
+			var decoded struct {
+				Files []struct {
+					Result map[string]any `json:"result"`
+				} `json:"files"`
+			}
+			if err := json.Unmarshal(out.Bytes(), &decoded); err != nil {
+				t.Fatal(err)
+			}
+			tt.check(t, decoded.Files[0].Result)
+		})
+	}
+}
+
+func containsString(value any, want string) bool {
+	items, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestMissingFileIsOperationalError(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"missing-file"}, &out, &errOut); code == 0 {

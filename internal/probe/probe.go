@@ -10,10 +10,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"musicunlocker/internal/decoder/upstream"
 )
+
+var copyCounterPattern = regexp.MustCompile(`^(.*?)\s*\(\d+\)$`)
 
 const (
 	maxHeaderRead = 4096
@@ -237,10 +240,16 @@ func extensionHints(filename string) []string {
 	var out []string
 	name := filepath.Base(filename)
 	for name != "" {
-		for _, suffix := range upstream.CandidateSuffixes(name) {
-			if !seen[suffix] {
-				seen[suffix] = true
-				out = append(out, suffix)
+		candidateNames := []string{name}
+		if normalized, ok := normalizeCopyCounter(name); ok {
+			candidateNames = append(candidateNames, normalized)
+		}
+		for _, candidateName := range candidateNames {
+			for _, suffix := range upstream.CandidateSuffixes(candidateName) {
+				if !seen[suffix] {
+					seen[suffix] = true
+					out = append(out, suffix)
+				}
 			}
 		}
 		ext := filepath.Ext(name)
@@ -250,4 +259,15 @@ func extensionHints(filename string) []string {
 		name = strings.TrimSuffix(name, ext)
 	}
 	return out
+}
+
+// normalizeCopyCounter removes only a terminal numeric copy counter when the
+// resulting name is already a registered decoder candidate. This keeps title
+// parentheses from becoming format hints.
+func normalizeCopyCounter(name string) (string, bool) {
+	match := copyCounterPattern.FindStringSubmatch(name)
+	if len(match) != 2 || match[1] == "" || len(upstream.CandidateSuffixes(match[1])) == 0 {
+		return "", false
+	}
+	return match[1], true
 }
