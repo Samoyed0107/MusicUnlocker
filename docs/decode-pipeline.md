@@ -3,7 +3,7 @@
 ## Pipeline
 
 ```text
-Probe → Resolver → Decoder → Decrypted Stream Sniff → Temporary Writer → Offline Metadata → Naming → Ordered Atomic Commit
+Probe → Local Container Metadata → Resolver → Decoder → Decrypted Stream Sniff → Temporary Writer → Decoded Metadata → Merge → Naming → Ordered Atomic Commit
 ```
 
 The core remains independent from the CLI and GUI. Content evidence has
@@ -65,7 +65,7 @@ Ordinary title parentheses remain intact. Existing targets return
 - output is copied to a temporary file and atomically renamed;
 - no transcoding is performed;
 - NCM, KWM, QMC, TM, Xiami, and Ximalaya adapters call only local upstream validation and stream operations;
-- metadata naming reads only bounded local tags from decoded temporary output; cover-art, lyrics, key acquisition, and network APIs are not used.
+- metadata naming reads only local NCM container fields and bounded local tags from decoded temporary output; decoded tags are primary and NCM fills missing Title/Artist/Album only. Cover-art, lyrics, key acquisition, and network APIs are not used. Container metadata failure never invalidates a successful decode.
 
 ## Developer CLI
 

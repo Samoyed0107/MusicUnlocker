@@ -15,7 +15,9 @@ The fixed version makes the reviewed decoder surface reproducible. Upgrades must
 
 MusicUnlocker currently consumes the upstream algorithms as a Go dependency through `internal/decoder/upstream`. Decoder implementation files are not copied into this repository, and future MusicUnlocker packages should not import the upstream module directly.
 
-The adapter exposes filename candidate discovery and explicit family adapters.
+The adapter exposes filename candidate discovery, explicit family adapters, and
+the NCM embedded metadata getter. The getter uses only local bytes; the NCM
+cover-image method and network APIs are not part of the decode path.
 Application packages never construct upstream `DecoderParams` directly. The
 adapters call only `Validate` and `Read`; metadata, cover, and network APIs are
 not part of the decode path.

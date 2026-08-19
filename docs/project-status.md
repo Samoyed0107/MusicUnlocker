@@ -8,8 +8,10 @@
 | 5D | `IMPLEMENTATION_COMPLETE` / `REAL_MANUAL_VALIDATION_PENDING` | Windows argv launch, drag-to-EXE path delivery, and Wails single-instance handoff. |
 | 5E1 | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Offline metadata-aware decoded-output naming core and deterministic finalization. |
 | 5E2 | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | GUI naming controls, backend validation, batch mapping, preference integration, and validated source-only CUSTOM template regression fix. |
+| 5F1 | `COMPLETE` / `REAL_PASS` | Corrected source-only CUSTOM naming and validated production output/audio integrity. |
 | 5F | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes, live switching, interpolation parity fix, runtime failure containment, and validated production startup. |
-| 5F2 | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Playback continuity across language switching and batch status badge placement. |
+| 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
+| 5G | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_NCM_NAMING_RETEST_PENDING` | Offline NCM container Title/Artist/Album integration for metadata-aware naming. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -24,7 +26,8 @@ audio hash are now validated.
 
 Stage 5F had a real production white-screen failure caused by the
 `batch.itemsAdded` interpolation mismatch. The fix and production startup are
-now real-validated. Stage 5F2 playback continuity remains real-retest pending.
+now real-validated. Stage 5F2 playback continuity is also real-validated.
 Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.
 
-Stage 5G remains planned.
+Stage 5G is implementation-complete and automated-tested. Real NCM naming
+retest remains pending.

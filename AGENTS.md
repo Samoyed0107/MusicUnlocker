@@ -46,3 +46,8 @@
 - Each active batch captures its validated naming configuration immutably; later preference edits do not affect that batch.
 - User-visible frontend strings use bundled localization keys; English is the complete fallback.
 - Core status/error enum values and naming template tokens are never translated.
+- Decoded embedded metadata is primary; trusted offline container metadata may
+  fill only missing naming fields.
+- Container metadata never controls the decoded extension and is not written
+  into output audio.
+- Container metadata failure must not invalidate an otherwise successful decode.

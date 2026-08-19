@@ -73,8 +73,11 @@ queue item always gets the first opportunity. If it creates the same final
 destination, a later item becomes `SKIPPED_OUTPUT_EXISTS`; if it uses another
 extension, it may succeed after waiting.
 
-Metadata naming prepares temporary files concurrently, then waits on a queue-index
-commit gate before resolving the final destination. The decoder finalizes with an
+Metadata naming obtains bounded local container metadata before decoding when a
+provider is available, then prepares temporary files concurrently and waits on a
+queue-index commit gate before resolving the final destination. Decoded tags are
+merged with container Title/Artist/Album values only after the temporary decoded
+file is closed; the decoder finalizes with an
 atomic no-replace hard-link operation from its temporary file. A destination that appears during finalization maps to
 `OUTPUT_EXISTS`; it is never silently replaced. The temporary file is cleaned
 on failure. This uses the standard library and assumes the temporary and final

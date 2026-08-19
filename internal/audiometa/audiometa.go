@@ -22,6 +22,28 @@ type Metadata struct {
 	Year                              int
 }
 
+// Merge keeps decoded-audio tags authoritative and fills only missing fields
+// from trusted local container metadata.
+func Merge(decoded, container Metadata) Metadata {
+	merged := decoded
+	if strings.TrimSpace(merged.Title) == "" {
+		merged.Title = strings.TrimSpace(container.Title)
+	}
+	if strings.TrimSpace(merged.Artist) == "" {
+		merged.Artist = strings.TrimSpace(container.Artist)
+	}
+	if strings.TrimSpace(merged.Album) == "" {
+		merged.Album = strings.TrimSpace(container.Album)
+	}
+	return merged
+}
+
+func (m Metadata) Available() bool {
+	return strings.TrimSpace(m.Title) != "" || strings.TrimSpace(m.Artist) != "" ||
+		strings.TrimSpace(m.Album) != "" || strings.TrimSpace(m.AlbumArtist) != "" ||
+		m.Track > 0 || m.Disc > 0 || m.Year > 0
+}
+
 func ReadFile(path string) (Metadata, error) {
 	f, err := os.Open(path)
 	if err != nil {

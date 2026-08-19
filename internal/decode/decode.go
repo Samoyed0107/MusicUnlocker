@@ -7,6 +7,7 @@ import (
 	"io"
 	"musicunlocker/internal/audiofmt"
 	"musicunlocker/internal/audiometa"
+	"musicunlocker/internal/containermeta"
 	"musicunlocker/internal/naming"
 	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
@@ -78,6 +79,7 @@ func PrepareFile(ctx context.Context, inputPath string, options Options) (Prepar
 	r.EncryptedFamily = string(p.Family)
 	r.EncryptedVariant = p.Variant
 	r.CryptoVersion = p.CryptoVersion
+	containerMeta, _ := containermeta.Read(ctx, p.Family, f, inputPath)
 	if options.Resolver == nil {
 		options.Resolver = DefaultResolver{}
 	}
@@ -123,19 +125,20 @@ func PrepareFile(ctx context.Context, inputPath string, options Options) (Prepar
 		cleanup()
 		return PreparedResult{Result: r}, e
 	}
-	meta, me := audiometa.ReadFile(name)
+	decodedMeta, _ := audiometa.ReadFile(name)
+	meta := audiometa.Merge(decodedMeta, containerMeta)
 	config := options.Naming
 	if config.Mode == "" {
 		config.Mode = naming.KeepSource
 	}
 	stem := outputplan.CleanStem(filepath.Base(inputPath), p)
-	nr, ne := naming.Resolve(config, stem, meta, me == nil)
+	nr, ne := naming.Resolve(config, stem, meta, meta.Available())
 	if ne != nil {
 		cleanup()
 		return PreparedResult{Result: r}, ne
 	}
 	r.Naming = nr
-	return PreparedResult{Result: r, TempPath: name, OutputDir: options.OutDir, SourceStem: stem, Probe: p, Metadata: meta, MetadataAvailable: me == nil}, nil
+	return PreparedResult{Result: r, TempPath: name, OutputDir: options.OutDir, SourceStem: stem, Probe: p, Metadata: meta, MetadataAvailable: meta.Available()}, nil
 }
 func FinalizePrepared(p *PreparedResult) (Result, error) {
 	if p == nil {

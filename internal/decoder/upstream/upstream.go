@@ -4,6 +4,7 @@ package upstream
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -24,6 +25,10 @@ import (
 )
 
 type Stream interface{ io.Reader }
+
+type NCMMetadata struct {
+	Title, Artist, Album string
+}
 
 func decoderFor(path, suffix string) (common.NewDecoderFunc, error) {
 	for _, decoder := range common.GetDecoder(path, true) {
@@ -68,6 +73,44 @@ func DecodeNCM(reader io.ReadSeeker, path string) (Stream, error) {
 		return nil, err
 	}
 	return decodeWith(reader, path, ".ncm")
+}
+
+// ReadNCMMetadata reads only the metadata already embedded in an NCM file.
+// The common upstream interface is intentionally converted at this boundary;
+// callers must not depend on upstream metadata types.
+func ReadNCMMetadata(ctx context.Context, reader io.ReadSeeker, path string) (NCMMetadata, error) {
+	if reader == nil {
+		return NCMMetadata{}, errors.New("upstream NCM metadata: nil reader")
+	}
+	start, err := reader.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return NCMMetadata{}, err
+	}
+	defer func() { _, _ = reader.Seek(start, io.SeekStart) }()
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return NCMMetadata{}, err
+	}
+	if err := validateNCMBounds(reader); err != nil {
+		return NCMMetadata{}, err
+	}
+	create, err := decoderFor(path, ".ncm")
+	if err != nil {
+		return NCMMetadata{}, err
+	}
+	decoder := create(&common.DecoderParams{Reader: reader, FilePath: path, Logger: zap.NewNop()})
+	if err := decoder.Validate(); err != nil {
+		return NCMMetadata{}, err
+	}
+	getter, ok := decoder.(common.AudioMetaGetter)
+	if !ok {
+		return NCMMetadata{}, errors.New("upstream NCM metadata: decoder has no metadata getter")
+	}
+	meta, err := getter.GetAudioMeta(ctx)
+	if err != nil || meta == nil {
+		return NCMMetadata{}, err
+	}
+	artists := meta.GetArtists()
+	return NCMMetadata{Title: meta.GetTitle(), Artist: strings.Join(artists, " / "), Album: meta.GetAlbum()}, nil
 }
 
 func DecodeKWM(reader io.ReadSeeker, path string) (Stream, error) {
@@ -141,7 +184,7 @@ func validateNCMBounds(reader io.ReadSeeker) error {
 	}
 	metaOffset := int64(14) + int64(keyLen)
 	metaLen, err := readU32(metaOffset)
-	if err != nil || metaLen > maxNCMSection || metaOffset+4+int64(metaLen)+5+8 > size {
+	if err != nil || metaLen < 22 || metaLen > maxNCMSection || metaOffset+4+int64(metaLen)+5+8 > size {
 		return errors.New("upstream NCM: invalid metadata section length")
 	}
 	coverFrameOffset := metaOffset + 4 + int64(metaLen) + 5

@@ -71,3 +71,21 @@ func TestVorbisComment(t *testing.T) {
 type sliceWriter struct{ p *[]byte }
 
 func (w sliceWriter) Write(b []byte) (int, error) { *w.p = append(*w.p, b...); return len(b), nil }
+
+func TestMergeDecodedMetadataWinsAndFillsMissingFields(t *testing.T) {
+	container := Metadata{Title: "Container title", Artist: "Container artist", Album: "Container album"}
+	for name, tc := range map[string]struct {
+		decoded Metadata
+		want    Metadata
+	}{
+		"all missing":           {decoded: Metadata{}, want: container},
+		"decoded wins":          {decoded: Metadata{Title: "Embedded title", Artist: "Embedded artist", Album: "Embedded album", Track: 7, Year: 2020}, want: Metadata{Title: "Embedded title", Artist: "Embedded artist", Album: "Embedded album", Track: 7, Year: 2020}},
+		"whitespace is missing": {decoded: Metadata{Title: "  ", Artist: "\t"}, want: Metadata{Title: "Container title", Artist: "Container artist", Album: "Container album"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := Merge(tc.decoded, container); got != tc.want {
+				t.Fatalf("Merge() = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}

@@ -54,9 +54,16 @@ No real audio or decoded output is stored in this repository.
 ## Stage 5F2 playback continuity
 
 - Language switching presentation: manually observed working.
-- Playback continuity across language switching: `REAL_FAIL / FIX_IMPLEMENTED /
-  REAL_RETEST_PENDING`. The player previously reloaded when the localized
-  error callback changed; the corrected build requires user retest.
+- Playback continuity across language switching: `REAL_PASS`. Audio continued
+  without restart, the paused position remained stable, and the revised batch
+  status badge placement was manually accepted.
+
+## Stage 5G NCM naming
+
+- Implementation and automated synthetic validation: `IMPLEMENTATION_COMPLETE /
+  AUTOMATED_TESTED`.
+- Real NCM naming retest: `REAL_NCM_NAMING_RETEST_PENDING`; the real NCM was not
+  accessed during implementation.
 
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
