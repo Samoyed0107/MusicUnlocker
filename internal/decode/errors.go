@@ -10,6 +10,7 @@ type ErrorCode string
 const (
 	CodeKGGDatabaseRequired    ErrorCode = "KGG_DATABASE_REQUIRED"
 	CodeQMCExternalKeyRequired ErrorCode = "QMC_EXTERNAL_KEY_REQUIRED"
+	CodeQMCExternalKeyProvider ErrorCode = "QMC_EXTERNAL_KEY_PROVIDER_FAILED"
 	CodeUnsupportedEncrypted   ErrorCode = "UNSUPPORTED_ENCRYPTED_FORMAT"
 	CodeUnknownFormat          ErrorCode = "UNKNOWN_FORMAT"
 	CodeDecodedAudioUnknown    ErrorCode = "DECODED_AUDIO_FORMAT_UNKNOWN"

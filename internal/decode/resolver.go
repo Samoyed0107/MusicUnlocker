@@ -24,7 +24,10 @@ func (DefaultResolver) Resolve(input *Input) (Stream, error) {
 		return upstream.DecodeKGM(input.Reader, input.Path)
 	case probe.FamilyQMC:
 		if input.Probe.NeedsExternalKey {
-			return nil, coded(CodeQMCExternalKeyRequired, errors.New("QMC format requires an external key"))
+			if len(input.ExternalMaterial) == 0 {
+				return nil, coded(CodeQMCExternalKeyRequired, errors.New("QMC format requires an external key"))
+			}
+			return upstream.DecodeQMCWithEKey(input.Reader, input.Path, input.ExternalMaterial)
 		}
 		if stream, err := upstream.DecodeQMC(input.Reader, input.Path); err == nil {
 			return stream, nil

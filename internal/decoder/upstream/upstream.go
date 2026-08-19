@@ -141,6 +141,71 @@ func DecodeQMC(reader io.ReadSeeker, path string) (Stream, error) {
 	return decodeFactory(reader, path, qmc.NewDecoder)
 }
 
+// DecodeQMCWithEKey adapts the two externally-keyed forms exposed by the
+// pinned upstream package. The application supplies canonical Base64 EKey
+// bytes; this adapter is the only place that knows upstream QMC key plumbing.
+func DecodeQMCWithEKey(reader io.ReadSeeker, path string, ekey []byte) (Stream, error) {
+	if len(ekey) == 0 {
+		return nil, errors.New("upstream QMC: external key is empty")
+	}
+	if footer, err := qmcFooter(reader); err == nil && footer == "STag" {
+		cipher, err := qmc.NewQmcCipherDecoderFromEKey(ekey)
+		if err != nil {
+			return nil, fmt.Errorf("upstream QMC external key rejected: %w", err)
+		}
+		size, err := reader.Seek(0, io.SeekEnd)
+		if err != nil || size < 4 {
+			return nil, errors.New("upstream QMC: invalid STag input")
+		}
+		if _, err := reader.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		return &externalQMCStream{source: io.LimitReader(reader, size-4), cipher: cipher}, nil
+	}
+	keys := common.QMCKeys{}
+	if footer, err := qmcFooter(reader); err == nil && footer == "cex\x00" {
+		tag, tagErr := qmc.NewMusicExTag(reader)
+		if tagErr != nil {
+			return nil, tagErr
+		}
+		keys[tag.MediaFileName] = string(ekey)
+	} else {
+		keys[path] = string(ekey)
+	}
+	create := func(p *common.DecoderParams) common.Decoder {
+		p.CryptoParams.QmcKeys = keys
+		return qmc.NewDecoder(p)
+	}
+	return decodeFactory(reader, path, create)
+}
+
+type externalQMCStream struct {
+	source io.Reader
+	cipher common.StreamDecoder
+	offset int
+}
+
+func (s *externalQMCStream) Read(p []byte) (int, error) {
+	n, err := s.source.Read(p)
+	if n > 0 {
+		s.cipher.Decrypt(p[:n], s.offset)
+		s.offset += n
+	}
+	return n, err
+}
+
+func qmcFooter(reader io.ReadSeeker) (string, error) {
+	if _, err := reader.Seek(-4, io.SeekEnd); err != nil {
+		return "", err
+	}
+	var b [4]byte
+	if _, err := io.ReadFull(reader, b[:]); err != nil {
+		return "", err
+	}
+	_, err := reader.Seek(0, io.SeekStart)
+	return string(b[:]), err
+}
+
 func DecodeTM(reader io.ReadSeeker, path string) (Stream, error) {
 	return decodeFactory(reader, path, tm.NewTmDecoder)
 }

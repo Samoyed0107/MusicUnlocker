@@ -51,3 +51,6 @@
 - Container metadata never controls the decoded extension and is not written
   into output audio.
 - Container metadata failure must not invalidate an otherwise successful decode.
+- External decryption material must be explicitly request-scoped, per-file,
+  offline, and non-persistent; it must never appear in logs, results, or user
+  errors. Missing material is a blocked state, not a generic decode failure.

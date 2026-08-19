@@ -11,7 +11,8 @@
 | 5F1 | `COMPLETE` / `REAL_PASS` | Corrected source-only CUSTOM naming and validated production output/audio integrity. |
 | 5F | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes, live switching, interpolation parity fix, runtime failure containment, and validated production startup. |
 | 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
-| 5G | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_NCM_NAMING_RETEST_PENDING` | Offline NCM container Title/Artist/Album integration for metadata-aware naming. |
+| 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
+| 6A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -29,5 +30,9 @@ Stage 5F had a real production white-screen failure caused by the
 now real-validated. Stage 5F2 playback continuity is also real-validated.
 Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.
 
-Stage 5G is implementation-complete and automated-tested. Real NCM naming
-retest remains pending.
+Stage 5G is `COMPLETE / REAL_PASS`; the validated naming outputs and audio hash
+are recorded in `docs/real-validation.md`.
+
+Stage 6A remains offline. Real QMC STag supplied-key decoding is
+`REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`. KGG/KGM V5 and the GUI
+key-entry workflow remain deferred to later stages.

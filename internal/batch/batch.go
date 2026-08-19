@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"musicunlocker/internal/decode"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
 	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
@@ -39,10 +40,11 @@ const (
 )
 
 type Request struct {
-	Inputs     []string      `json:"inputs"`
-	OutputRoot string        `json:"outputRoot"`
-	MaxWorkers int           `json:"maxWorkers"`
-	Naming     naming.Config `json:"naming,omitempty"`
+	Inputs                   []string                  `json:"inputs"`
+	OutputRoot               string                    `json:"outputRoot"`
+	MaxWorkers               int                       `json:"maxWorkers"`
+	Naming                   naming.Config             `json:"naming,omitempty"`
+	ExternalMaterialProvider externalmaterial.Provider `json:"-"`
 }
 
 type Result struct {
@@ -195,7 +197,7 @@ func (e Engine) Run(ctx context.Context, req Request) (Summary, error) {
 		item.targetKey, _ = outputplan.TargetKey(outputplan.Request{InputPath: item.file.path, OutputDir: filepath.Join(outputRoot, item.file.outputRelativeDir), Probe: p})
 	}
 	if ctx.Err() == nil {
-		runGroups(ctx, e, items, workers, outputRoot, req.Naming)
+		runGroups(ctx, e, items, workers, outputRoot, req.Naming, req.ExternalMaterialProvider)
 	} else {
 		for _, item := range items {
 			if item.file != nil && item.runnable && item.result.Status == "" {
@@ -292,7 +294,7 @@ func finishCancelled(e Engine, item *queueItem) {
 	e.emit(eventFor(EventFinished, item.result))
 }
 
-func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string, config naming.Config) {
+func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string, config naming.Config, provider externalmaterial.Provider) {
 	groupsByKey := map[string]*workGroup{}
 	var groups []*workGroup
 	for _, item := range items {
@@ -322,7 +324,7 @@ func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int
 		go func() {
 			defer wg.Done()
 			for group := range jobs {
-				processGroup(ctx, e, group, outputRoot, config, gate)
+				processGroup(ctx, e, group, outputRoot, config, provider, gate)
 			}
 		}()
 	}
@@ -348,7 +350,7 @@ dispatchLoop:
 	}
 }
 
-func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string, config naming.Config, gate *commitGate) {
+func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string, config naming.Config, provider externalmaterial.Provider, gate *commitGate) {
 	for position, item := range group.items {
 		if ctx.Err() != nil {
 			for _, remaining := range group.items[position:] {
@@ -369,7 +371,7 @@ func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot st
 		var decoded decode.Result
 		var decodeErr error
 		if e.Decoder == nil && config.Mode != naming.KeepSource {
-			prepared, prepareErr := decode.PrepareFile(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config})
+			prepared, prepareErr := decode.PrepareFile(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider})
 			if prepareErr == nil {
 				if waitErr := gate.wait(ctx, item.result.Index); waitErr != nil {
 					prepared.Abort()
@@ -388,7 +390,7 @@ func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot st
 			if decoder == nil {
 				decoder = decode.DecodeFile
 			}
-			decoded, decodeErr = decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config})
+			decoded, decodeErr = decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider})
 		}
 		item.result.OutputPath, item.result.DecodedAudioFormat, item.result.BytesWritten = decoded.OutputPath, decoded.DecodedFormat, decoded.BytesWritten
 		item.result.RequestedNamingMode, item.result.ActualNamingMode = string(decoded.Naming.RequestedMode), string(decoded.Naming.UsedMode)

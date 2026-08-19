@@ -115,6 +115,13 @@ untouched. `Run` does not return while workers can still mutate the filesystem.
 
 Pause/resume is intentionally not implemented.
 
+Stage 6A adds an application-owned provider to `batch.Request`. It resolves by
+source path only when probing says external QMC material is needed and may be
+called concurrently; the built-in in-memory provider is safe for concurrent
+reads. Material is never copied into `Result` or `Summary`. The CLI deliberately
+does not expose a single-key-for-all-files mapping; richer per-file CLI mapping
+is deferred to Stage 6B.
+
 ## Developer CLI
 
 ```text

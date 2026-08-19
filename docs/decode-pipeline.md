@@ -19,7 +19,7 @@ upstream `Validate`.
 | NCM | implemented offline | tested | pending | none |
 | KWM | implemented offline | tested | pending | none |
 | QMC static/embedded-key/QTag candidates | implemented offline | tested at adapter boundary | pending | none for self-contained files |
-| QMC STag/MusicEx | blocked | tested | probe real-pass | external key required |
+| QMC STag/MusicEx | supplied-key adapter; missing material blocked | provider/adapter tested | probe real-pass | real supplied-key validation pending |
 | TM | implemented offline | tested | pending | none |
 | Xiami | implemented offline | tested | pending | none |
 | Ximalaya | controlled candidate validation | tested | pending | none |

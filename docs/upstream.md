@@ -76,3 +76,16 @@ Future upstream upgrades must:
 2. review release and commit changes;
 3. run MusicUnlocker regression tests; and
 4. never silently track a moving branch such as `main`, `master`, or `latest`.
+
+## Stage 6A QMC findings
+
+Pinned `v0.2.19` exports `NewQmcCipherDecoderFromEKey`, accepting the canonical
+Base64-encoded EKey bytes and performing upstream derivation. QTag and raw
+embedded keys are discovered by the decoder itself, so the provider is not
+consulted for self-contained probes. The upstream STag branch has no supplied
+key constructor and returns a missing-media-key error; the adapter therefore
+uses the exported EKey cipher over bytes before the four-byte `STag` footer.
+MusicEx uses upstream `QMCKeys` keyed by its embedded media filename. Decode
+itself performs no network access. The package also contains a separate QQ
+Music HTTP client for optional metadata/cover methods, which MusicUnlocker does
+not call in its decode pipeline.

@@ -8,6 +8,7 @@ import (
 	"musicunlocker/internal/audiofmt"
 	"musicunlocker/internal/audiometa"
 	"musicunlocker/internal/containermeta"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
 	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
@@ -18,9 +19,10 @@ import (
 
 type Stream interface{ io.Reader }
 type Input struct {
-	Path   string
-	Probe  probe.Result
-	Reader io.ReadSeeker
+	Path             string
+	Probe            probe.Result
+	Reader           io.ReadSeeker
+	ExternalMaterial []byte
 }
 type Resolver interface{ Resolve(*Input) (Stream, error) }
 type Progress struct {
@@ -28,10 +30,11 @@ type Progress struct {
 	SourceBytesKnown          bool
 }
 type Options struct {
-	OutDir   string
-	Resolver Resolver
-	Progress func(Progress)
-	Naming   naming.Config
+	OutDir                   string
+	Resolver                 Resolver
+	Progress                 func(Progress)
+	Naming                   naming.Config
+	ExternalMaterialProvider externalmaterial.Provider
 }
 type Result struct {
 	InputPath, OutputPath, EncryptedFamily, EncryptedVariant, DecodedFormat string
@@ -84,6 +87,15 @@ func PrepareFile(ctx context.Context, inputPath string, options Options) (Prepar
 		options.Resolver = DefaultResolver{}
 	}
 	in := &Input{Path: inputPath, Probe: p, Reader: f}
+	if p.NeedsExternalKey && options.ExternalMaterialProvider != nil {
+		material, ok, providerErr := options.ExternalMaterialProvider.ResolveQMCExternalKey(ctx, inputPath)
+		if providerErr != nil {
+			return PreparedResult{Result: r}, coded(CodeQMCExternalKeyProvider, errors.New("external QMC key provider failed"))
+		}
+		if ok {
+			in.ExternalMaterial = material
+		}
+	}
 	stream, e := options.Resolver.Resolve(in)
 	if e != nil {
 		return PreparedResult{Result: r}, e

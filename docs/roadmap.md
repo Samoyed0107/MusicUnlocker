@@ -45,6 +45,14 @@ validation are complete.
 ## Completed: Stage 5G
 
 Offline NCM container Title/Artist/Album metadata now fills missing decoded
-metadata for the existing naming engine. Automated validation is complete;
-real NCM naming retest remains pending. QMC external keys, KGG databases,
-online metadata, and Stage 6 remain out of scope.
+metadata for the existing naming engine. Stage 5G is `COMPLETE / REAL_PASS`;
+evidence is recorded in `docs/real-validation.md`.
+
+## Stage 6A
+
+Core accepts request-scoped, per-source external QMC EKeys through an
+application-owned provider. `musicdecode --qmc-ekey-file` reads the pinned
+upstream Base64 representation with a bounded, offline, in-memory lifetime.
+Batch Core carries a per-file provider, but `musicbatch` deliberately has no
+one-key-for-all-files interface. GUI key entry is deferred to Stage 6B; KGG/KGM
+V5 database support is not implemented.

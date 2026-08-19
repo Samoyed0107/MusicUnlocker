@@ -7,7 +7,7 @@ This document records validation status without storing real audio files.
 | KGM V3 | `REAL_PASS` | Real decode, MP3 sniff despite `.flac` source suffix, 5,641,481-byte payload, playback/seeking, clean naming, and no-overwrite validated. |
 | NCM | `REAL_PASS` | Real NCM -> MP3 decode completed; output 3,977,343 bytes; SHA-256 `AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`; ID3v2.4 and MPEG frame confirmed; GUI completion, playback, and seek confirmed. |
 | KWM | `REAL_PENDING` | Code path is wired and tested; real sample still needed. |
-| QMC STag | `PROBE_REAL_PASS_DECODE_BLOCKED` | Real STag sample was confirmed; external key is required. |
+| QMC STag | `PROBE_REAL_PASS_DECODE_BLOCKED` | Real STag sample was confirmed; external key is required. Stage 6A core is automated-tested, but no real key was available. |
 | KGM v5/KGG | `REAL_PENDING_EXTERNAL_DATABASE` | Database support is intentionally deferred. |
 | TM | `REAL_PENDING` | Synthetic content and adapter validation are tested. |
 | Xiami | `REAL_PENDING` | Synthetic structural probe and malformed adapter tests are present. |
@@ -62,8 +62,18 @@ No real audio or decoded output is stored in this repository.
 
 - Implementation and automated synthetic validation: `IMPLEMENTATION_COMPLETE /
   AUTOMATED_TESTED`.
-- Real NCM naming retest: `REAL_NCM_NAMING_RETEST_PENDING`; the real NCM was not
-  accessed during implementation.
+- Real NCM naming retest: `COMPLETE / REAL_PASS`.
+
+Stage 5G real evidence: `KEEP_SOURCE` -> `Gabrielle Aplin - Salvation(1).mp3`;
+`TITLE` -> `Salvation.mp3`; `ARTIST_TITLE` -> `Gabrielle Aplin - Salvation.mp3`;
+`TITLE_ARTIST` -> `Salvation - Gabrielle Aplin.mp3`; `{title}-{artist}` ->
+`Salvation-Gabrielle Aplin.mp3`; `{album} - {title}` ->
+`English Rain - Salvation.mp3`; `{source}-TEST` ->
+`Gabrielle Aplin - Salvation(1)-TEST.mp3`. All variants preserved identical
+decoded bytes: 3,977,343 bytes, SHA-256
+`AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`.
+Controlled isolated CUSTOM retests did not reproduce earlier ambiguous fallback
+observations; no confirmed product bug remains.
 
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails

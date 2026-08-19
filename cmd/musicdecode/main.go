@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"musicunlocker/internal/decode"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
 )
 
@@ -19,6 +20,7 @@ func run(args []string, out, errOut io.Writer) int {
 	outDir := flags.String("out-dir", "", "explicit output directory")
 	nameMode := flags.String("name-mode", "source", "source, title, artist-title, title-artist, track-title, artist-album-track-title")
 	nameTemplate := flags.String("name-template", "", "custom output-name template")
+	ekeyFile := flags.String("qmc-ekey-file", "", "file containing a canonical Base64 QMC external EKey")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -31,7 +33,16 @@ func run(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, err)
 		return 2
 	}
-	result, err := decode.DecodeFile(context.Background(), flags.Arg(0), decode.Options{OutDir: *outDir, Naming: config})
+	var provider externalmaterial.Provider
+	if *ekeyFile != "" {
+		key, readErr := externalmaterial.ReadEKeyFile(*ekeyFile)
+		if readErr != nil {
+			fmt.Fprintln(errOut, readErr)
+			return 2
+		}
+		provider = externalmaterial.NewMapProvider(map[string][]byte{flags.Arg(0): key})
+	}
+	result, err := decode.DecodeFile(context.Background(), flags.Arg(0), decode.Options{OutDir: *outDir, Naming: config, ExternalMaterialProvider: provider})
 	if err != nil {
 		writeError(errOut, err)
 		return 1

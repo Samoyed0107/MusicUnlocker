@@ -17,6 +17,16 @@ type fakeResolver struct {
 	err  error
 }
 
+type recordingMaterialProvider struct {
+	path     string
+	material []byte
+}
+
+func (p *recordingMaterialProvider) ResolveQMCExternalKey(_ context.Context, path string) ([]byte, bool, error) {
+	p.path = path
+	return append([]byte(nil), p.material...), true, nil
+}
+
 func TestResolverControlledFallback(t *testing.T) {
 	for _, tc := range []struct{ name, suffix, want string }{
 		{"tm", ".tm2", "candidate decoder validation failed"},
@@ -114,6 +124,27 @@ func TestDecodeErrorsAndSafety(t *testing.T) {
 	_, err = DecodeFile(cancelled, in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: data}})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation error = %v", err)
+	}
+}
+
+func TestExternalMaterialProviderIsResolvedOnlyForRequiredQMC(t *testing.T) {
+	in := writeInput(t, "needs.qmc0", append([]byte("encrypted"), []byte("STag")...))
+	provider := &recordingMaterialProvider{material: []byte("synthetic-ekey")}
+	_, err := DecodeFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: append([]byte("ID3"), []byte("audio")...)}, ExternalMaterialProvider: provider})
+	if provider.path != in {
+		t.Fatalf("provider path=%q want %q", provider.path, in)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain := writeInput(t, "self.qmc0", []byte("encrypted"))
+	provider.path = ""
+	_, err = DecodeFile(context.Background(), plain, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: append([]byte("ID3"), []byte("audio")...)}, ExternalMaterialProvider: provider})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.path != "" {
+		t.Fatalf("provider was consulted for self-contained input: %q", provider.path)
 	}
 }
 
