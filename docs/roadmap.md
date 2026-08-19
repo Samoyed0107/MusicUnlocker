@@ -56,3 +56,13 @@ upstream Base64 representation with a bounded, offline, in-memory lifetime.
 Batch Core carries a per-file provider, but `musicbatch` deliberately has no
 one-key-for-all-files interface. GUI key entry is deferred to Stage 6B; KGG/KGM
 V5 database support is not implemented.
+
+## Stage 6B
+
+Blocked QMC rows can open a native Windows EKey file chooser and retry only
+that item through the normal batch/decode pipeline. The original output and
+naming snapshot is retained in memory for the active completed batch. Valid
+file parsing reuses the Stage 6A bounded Base64 parser; malformed files do not
+start decoding. Results replace the original queue index and summary counts
+are recalculated. Keys and key paths are never persisted or sent to React.
+Real supplied-key QMC GUI validation remains pending; Stage 6C is not started.

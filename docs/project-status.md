@@ -13,6 +13,7 @@
 | 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
 | 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
 | 6A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
+| 6B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_QMC_EKEY_GUI_RETEST_PENDING` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -36,3 +37,9 @@ are recorded in `docs/real-validation.md`.
 Stage 6A remains offline. Real QMC STag supplied-key decoding is
 `REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`. KGG/KGM V5 and the GUI
 key-entry workflow remain deferred to later stages.
+
+Stage 6B adds a non-persistent native EKey file selection flow. Only the
+selected blocked item is retried; its stable queue index is replaced in the
+latest snapshot and summary counts are recomputed. Raw key material and the
+selected key path remain backend-only. Real supplied-key QMC validation remains
+pending.

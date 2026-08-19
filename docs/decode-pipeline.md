@@ -33,6 +33,10 @@ Strong TM and Xiami content signatures route directly to their adapters. QMC
 footer evidence routes STag and MusicEx to the typed external-key state, while
 QTag may use the canonical self-contained decoder.
 
+Stage 6B supplies external material only after an eligible blocked result. The
+GUI does not create a second decoder path: the normal resolver, content sniff,
+metadata, naming, and atomic finalization pipeline is reused.
+
 For files without strong content evidence, only these distinctive candidates
 are considered, in deterministic priority order:
 

@@ -3,6 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -174,6 +177,161 @@ type emptyDialogs struct{}
 func (emptyDialogs) SelectFiles() ([]string, error)      { return nil, nil }
 func (emptyDialogs) SelectFolder() (string, error)       { return "", nil }
 func (emptyDialogs) SelectOutputFolder() (string, error) { return "", nil }
+
+type retryDialogs struct {
+	emptyDialogs
+	keyPath string
+	err     error
+}
+
+func (d retryDialogs) SelectQMCExternalKeyFile() (string, error) { return d.keyPath, d.err }
+
+type retryEngine struct {
+	mu       sync.Mutex
+	calls    int
+	paths    []string
+	material []string
+	initial  batch.Status
+}
+
+func (e *retryEngine) Run(_ context.Context, req batch.Request) (batch.Summary, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.calls++
+	if len(req.Inputs) != 1 {
+		return batch.Summary{}, errors.New("unexpected retry input count")
+	}
+	e.paths = append(e.paths, req.Inputs[0])
+	if req.ExternalMaterialProvider != nil {
+		key, ok, err := req.ExternalMaterialProvider.ResolveQMCExternalKey(context.Background(), req.Inputs[0])
+		if err != nil || !ok {
+			return batch.Summary{}, errors.New("retry provider unavailable")
+		}
+		e.material = append(e.material, string(key))
+	}
+	if e.calls == 1 {
+		status := e.initial
+		if status == "" {
+			status = batch.StatusBlockedExternalKey
+		}
+		code := "QMC_EXTERNAL_KEY_REQUIRED"
+		if status != batch.StatusBlockedExternalKey {
+			code = "PROCESSING_ERROR"
+		}
+		return batch.Summary{Results: []batch.Result{{Index: 0, SourcePath: req.Inputs[0], Status: status, ErrorCode: code, ErrorDetail: "requires key"}}}, nil
+	}
+	return batch.Summary{Results: []batch.Result{{Index: 0, SourcePath: req.Inputs[0], Status: batch.StatusSuccess, OutputPath: `C:\out\song.mp3`, DecodedAudioFormat: "mp3", BytesWritten: 12}}}, nil
+}
+func (e *retryEngine) RunWithObserver(ctx context.Context, req batch.Request, _ batch.Observer) (batch.Summary, error) {
+	return e.Run(ctx, req)
+}
+
+func latestComplete(s *fakeSink) BatchCompleteEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := len(s.events) - 1; i >= 0; i-- {
+		if s.events[i] == EventComplete {
+			return s.payloads[i].(BatchCompleteEvent)
+		}
+	}
+	return BatchCompleteEvent{}
+}
+
+func TestRetryCancelAndMalformedFileDoNotDecode(t *testing.T) {
+	dir := t.TempDir()
+	bad := filepath.Join(dir, "bad.key")
+	if err := os.WriteFile(bad, []byte("not base64"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for name, keyPath := range map[string]string{"cancel": "", "malformed": bad} {
+		e := &retryEngine{}
+		sink := &fakeSink{}
+		a := New(e, sink, retryDialogs{keyPath: keyPath})
+		id, err := a.StartBatch(BatchStartRequest{Inputs: []string{`C:\song.qmc0`}, OutputRoot: `C:\out`, MaxWorkers: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitComplete(sink, 1)
+		err = a.RetryQMCWithExternalKey(id.BatchID, 0)
+		if name == "cancel" && err != nil {
+			t.Fatalf("cancel err=%v", err)
+		}
+		if name == "malformed" && (err == nil || !strings.Contains(err.Error(), "QMC_EXTERNAL_KEY_FILE_INVALID")) {
+			t.Fatalf("malformed err=%v", err)
+		}
+		e.mu.Lock()
+		calls := e.calls
+		e.mu.Unlock()
+		if calls != 1 {
+			t.Fatalf("%s decode calls=%d", name, calls)
+		}
+	}
+}
+
+func TestRetryReplacesStableRowAndScopesMaterial(t *testing.T) {
+	dir := t.TempDir()
+	keyPath := filepath.Join(dir, "valid.key")
+	if err := os.WriteFile(keyPath, []byte("\xef\xbb\xbfQUJDREVGR0hJSktMTU5PUA==\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	e := &retryEngine{}
+	sink := &fakeSink{}
+	a := New(e, sink, retryDialogs{keyPath: keyPath})
+	id, err := a.StartBatch(BatchStartRequest{Inputs: []string{`C:\song.qmc0`}, OutputRoot: `C:\out`, MaxWorkers: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitComplete(sink, 1)
+	if err := a.RetryQMCWithExternalKey(id.BatchID, 0); err != nil {
+		t.Fatal(err)
+	}
+	complete := latestComplete(sink)
+	if complete.Snapshot.Successes != 1 || complete.Snapshot.BlockedExternalKey != 0 || len(complete.Snapshot.Results) != 1 {
+		t.Fatalf("snapshot=%+v", complete.Snapshot)
+	}
+	item := complete.Snapshot.Results[0]
+	if item.Index != 0 || item.Status != string(batch.StatusSuccess) || item.OutputPath != `C:\out\song.mp3` {
+		t.Fatalf("item=%+v", item)
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.material) != 1 || e.material[0] != "QUJDREVGR0hJSktMTU5PUA==" || e.paths[1] != `C:\song.qmc0` {
+		t.Fatalf("retry calls paths=%v material=%v", e.paths, e.material)
+	}
+}
+
+func TestRetryEligibilityAndStaleBatch(t *testing.T) {
+	e := &retryEngine{}
+	sink := &fakeSink{}
+	a := New(e, sink, retryDialogs{})
+	if err := a.RetryQMCWithExternalKey(99, 0); err == nil || !strings.Contains(err.Error(), "STALE_BATCH") {
+		t.Fatalf("stale error=%v", err)
+	}
+	id, err := a.StartBatch(validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitComplete(sink, 1)
+	if err := a.RetryQMCWithExternalKey(id.BatchID, 8); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
+		t.Fatalf("ineligible error=%v", err)
+	}
+}
+
+func TestRetryRejectsSuccessAndUnrelatedFailure(t *testing.T) {
+	for _, status := range []batch.Status{batch.StatusSuccess, batch.StatusFailed} {
+		e := &retryEngine{initial: status}
+		sink := &fakeSink{}
+		a := New(e, sink, retryDialogs{})
+		id, err := a.StartBatch(validRequest())
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitComplete(sink, 1)
+		if err := a.RetryQMCWithExternalKey(id.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
+			t.Fatalf("status=%s error=%v", status, err)
+		}
+	}
+}
 
 func TestDialogCancellationIsEmptyAndNotAnError(t *testing.T) {
 	a := New(&fakeEngine{}, &fakeSink{}, emptyDialogs{})

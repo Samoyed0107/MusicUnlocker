@@ -47,4 +47,20 @@ func (p *MapProvider) ResolveQMCExternalKey(ctx context.Context, sourcePath stri
 	return append([]byte(nil), key...), true, nil
 }
 
+// Clear releases the provider's mutable copies after a request completes.
+// This is lifetime minimization, not a guarantee of memory zeroization.
+func (p *MapProvider) Clear() {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	for path, key := range p.keys {
+		for i := range key {
+			key[i] = 0
+		}
+		delete(p.keys, path)
+	}
+	p.mu.Unlock()
+}
+
 func canonical(path string) string { return filepath.Clean(path) }

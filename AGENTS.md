@@ -54,3 +54,5 @@
 - External decryption material must be explicitly request-scoped, per-file,
   offline, and non-persistent; it must never appear in logs, results, or user
   errors. Missing material is a blocked state, not a generic decode failure.
+- Frontend code must never receive raw external decryption material or its
+  selected file path; native selection and consumption remain backend-owned.

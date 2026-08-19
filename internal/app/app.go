@@ -11,6 +11,7 @@ import (
 
 	"musicunlocker/internal/audiometa"
 	"musicunlocker/internal/batch"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
 )
 
@@ -77,6 +78,7 @@ type QueueItem struct {
 	Status               string `json:"status"`
 	ErrorCode            string `json:"errorCode,omitempty"`
 	ErrorDetail          string `json:"errorDetail,omitempty"`
+	RetryableExternalKey bool   `json:"retryableExternalKey,omitempty"`
 	NamingFallback       bool   `json:"namingFallback,omitempty"`
 	NamingFallbackReason string `json:"namingFallbackReason,omitempty"`
 }
@@ -122,6 +124,7 @@ type Dialogs interface {
 	SelectFolder() (string, error)
 	SelectOutputFolder() (string, error)
 }
+type EKeyDialog interface{ SelectQMCExternalKeyFile() (string, error) }
 type EngineRunner interface {
 	Run(context.Context, batch.Request) (batch.Summary, error)
 }
@@ -144,7 +147,16 @@ type Application struct {
 	previewErr  error
 	latestID    uint64
 	latest      *BatchSnapshot
+	retry       *retrySession
+	retrying    bool
 	launchInbox LaunchInbox
+}
+
+type retrySession struct {
+	batchID    uint64
+	outputRoot string
+	naming     naming.Config
+	items      map[int]bool
 }
 
 func (a *Application) ReceiveLaunchPaths(event LaunchPathsEvent) {
@@ -269,7 +281,7 @@ func (a *Application) StartBatch(req BatchStartRequest) (BatchStartResponse, err
 	}
 	req.Naming = &NamingConfigDTO{Mode: string(namingConfig.Mode), CustomTemplate: namingConfig.CustomTemplate}
 	a.mu.Lock()
-	if a.running {
+	if a.running || a.retrying {
 		a.mu.Unlock()
 		return BatchStartResponse{}, ErrBatchAlreadyRunning
 	}
@@ -279,6 +291,7 @@ func (a *Application) StartBatch(req BatchStartRequest) (BatchStartResponse, err
 		a.preview.Invalidate()
 	}
 	a.latestID, a.latest = 0, nil
+	a.retry = nil
 	ctx, cancel := context.WithCancel(context.Background())
 	a.running, a.activeID, a.cancel = true, id, cancel
 	a.mu.Unlock()
@@ -311,6 +324,18 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 		copySnapshot := complete.Snapshot
 		copySnapshot.Results = append([]QueueItem(nil), complete.Snapshot.Results...)
 		a.latestID, a.latest = id, &copySnapshot
+		retry := &retrySession{batchID: id, outputRoot: req.OutputRoot, naming: namingConfigFromDTO(req.Naming), items: map[int]bool{}}
+		for _, item := range copySnapshot.Results {
+			if item.Status == string(batch.StatusBlockedExternalKey) && item.ErrorCode == string("QMC_EXTERNAL_KEY_REQUIRED") {
+				retry.items[item.Index] = true
+				for i := range copySnapshot.Results {
+					if copySnapshot.Results[i].Index == item.Index {
+						copySnapshot.Results[i].RetryableExternalKey = true
+					}
+				}
+			}
+		}
+		a.retry = retry
 	}
 	a.mu.Unlock()
 	a.sink.Emit(EventComplete, complete)
@@ -322,6 +347,100 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 	for _, event := range a.launchInbox.FlushDeferred() {
 		a.sink.Emit(EventLaunchPaths, event)
 	}
+}
+
+// RetryQMCWithExternalKey opens the native picker and retries exactly one
+// blocked source using the normal batch/decode pipeline. The key path and
+// material never leave the backend.
+func (a *Application) RetryQMCWithExternalKey(batchID uint64, index int) error {
+	dialog, ok := a.dialogs.(EKeyDialog)
+	if !ok {
+		return &ApplicationError{Code: "DIALOG_UNAVAILABLE", Detail: "external-key file dialog is unavailable"}
+	}
+	a.mu.Lock()
+	if a.running || a.retrying {
+		a.mu.Unlock()
+		return ErrBatchAlreadyRunning
+	}
+	if a.retry == nil || a.retry.batchID != batchID {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "STALE_BATCH", Detail: "the batch is no longer available for retry"}
+	}
+	if !a.retry.items[index] {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "RETRY_NOT_ELIGIBLE", Detail: "this item is not eligible for external-key retry"}
+	}
+	var item QueueItem
+	for _, candidate := range a.latest.Results {
+		if candidate.Index == index {
+			item = candidate
+			break
+		}
+	}
+	if item.SourcePath == "" {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "INVALID_ITEM_INDEX", Detail: "the requested batch item does not exist"}
+	}
+	session := *a.retry
+	a.retrying = true
+	a.mu.Unlock()
+	defer func() { a.mu.Lock(); a.retrying = false; a.mu.Unlock() }()
+
+	keyPath, err := dialog.SelectQMCExternalKeyFile()
+	if err != nil {
+		return &ApplicationError{Code: "EKEY_FILE_INVALID", Detail: "the external-key file could not be selected"}
+	}
+	if keyPath == "" {
+		return nil
+	}
+	key, err := externalmaterial.ReadEKeyFile(keyPath)
+	if err != nil {
+		return &ApplicationError{Code: "QMC_EXTERNAL_KEY_FILE_INVALID", Detail: err.Error()}
+	}
+	provider := externalmaterial.NewMapProvider(map[string][]byte{item.SourcePath: key})
+	defer func() {
+		provider.Clear()
+		for i := range key {
+			key[i] = 0
+		}
+	}()
+
+	ctx := context.Background()
+	summary, runErr := a.engine.Run(ctx, batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, ExternalMaterialProvider: provider})
+	if runErr != nil {
+		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the external-key retry could not be completed"}
+	}
+	if len(summary.Results) == 0 {
+		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the external-key retry returned no result"}
+	}
+	replacement := itemFrom(summary.Results[0])
+	replacement.Index = index
+	replacement.SourcePath = item.SourcePath
+	replacement.RetryableExternalKey = true
+	if replacement.Status == string(batch.StatusSuccess) {
+		replacement.RetryableExternalKey = false
+		delete(session.items, index)
+	} else {
+		replacement.ErrorCode = "QMC_EXTERNAL_KEY_ATTEMPT_FAILED"
+		replacement.ErrorDetail = "the supplied external QMC key could not unlock this file"
+		session.items[index] = true
+	}
+	a.mu.Lock()
+	if a.latestID != batchID || a.latest == nil {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "STALE_BATCH", Detail: "the batch is no longer available for retry"}
+	}
+	a.latest = replaceSnapshot(a.latest, replacement)
+	a.retry = &session
+	snapshot := *a.latest
+	snapshot.Results = append([]QueueItem(nil), a.latest.Results...)
+	a.mu.Unlock()
+	a.sink.Emit(EventFinished, struct {
+		BatchID uint64    `json:"batchId"`
+		Item    QueueItem `json:"item"`
+	}{batchID, replacement})
+	a.sink.Emit(EventComplete, BatchCompleteEvent{BatchID: batchID, Snapshot: snapshot})
+	return nil
 }
 
 func (a *Application) GetPreviewURL(batchID uint64, index int) (PreviewResponse, error) {
@@ -406,6 +525,41 @@ func (a *Application) emitEvent(id uint64, event batch.Event) {
 
 func itemFrom(r batch.Result) QueueItem {
 	return QueueItem{Index: r.Index, SourcePath: r.SourcePath, SourceDisplayName: filepath.Base(r.SourcePath), RelativePath: r.RelativePath, OutputPath: r.OutputPath, Family: r.DetectedFamily, Variant: r.Variant, DecodedFormat: r.DecodedAudioFormat, SourceBytes: r.SourceBytes, SourceBytesKnown: r.SourceBytesKnown, BytesWritten: r.BytesWritten, Status: string(r.Status), ErrorCode: r.ErrorCode, ErrorDetail: r.ErrorDetail, NamingFallback: r.NamingFallback, NamingFallbackReason: r.NamingFallbackReason}
+}
+
+func replaceSnapshot(snapshot *BatchSnapshot, replacement QueueItem) *BatchSnapshot {
+	out := *snapshot
+	out.Results = append([]QueueItem(nil), snapshot.Results...)
+	for i := range out.Results {
+		if out.Results[i].Index == replacement.Index {
+			out.Results[i] = replacement
+		}
+	}
+	out.Successes, out.SkippedNotEncrypted, out.SkippedExisting, out.BlockedExternalKey, out.BlockedExternalDatabase, out.Unsupported, out.Unknown, out.Failed, out.Cancelled, out.BytesWritten = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	for _, item := range out.Results {
+		switch item.Status {
+		case string(batch.StatusSuccess):
+			out.Successes++
+			out.BytesWritten += item.BytesWritten
+		case string(batch.StatusSkippedNotEncrypted):
+			out.SkippedNotEncrypted++
+		case string(batch.StatusSkippedOutputExists):
+			out.SkippedExisting++
+		case string(batch.StatusBlockedExternalKey):
+			out.BlockedExternalKey++
+		case string(batch.StatusBlockedExternalDatabase):
+			out.BlockedExternalDatabase++
+		case string(batch.StatusUnsupported):
+			out.Unsupported++
+		case string(batch.StatusUnknown):
+			out.Unknown++
+		case string(batch.StatusFailed):
+			out.Failed++
+		case string(batch.StatusCancelled):
+			out.Cancelled++
+		}
+	}
+	return &out
 }
 func snapshotFrom(s batch.Summary) BatchSnapshot {
 	out := BatchSnapshot{DiscoveredRegularFiles: s.DiscoveredRegularFiles, EligibleEncrypted: s.EligibleEncrypted, Successes: s.Successes, SkippedNotEncrypted: s.SkippedNotEncrypted, SkippedExisting: s.SkippedExisting, BlockedExternalKey: s.BlockedExternalKey, BlockedExternalDatabase: s.BlockedExternalDatabase, Unsupported: s.Unsupported, Unknown: s.Unknown, Failed: s.Failed, Cancelled: s.Cancelled, BytesWritten: s.BytesWritten, Duration: int64(s.Duration), Results: make([]QueueItem, len(s.Results))}

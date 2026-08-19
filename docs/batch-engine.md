@@ -122,6 +122,10 @@ reads. Material is never copied into `Result` or `Summary`. The CLI deliberately
 does not expose a single-key-for-all-files mapping; richer per-file CLI mapping
 is deferred to Stage 6B.
 
+The GUI's Stage 6B retry invokes this same engine for a single source path with
+the captured output root, naming configuration, and a request-scoped provider.
+It does not rerun the original batch or mutate other queue items.
+
 ## Developer CLI
 
 ```text

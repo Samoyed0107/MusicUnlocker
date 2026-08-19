@@ -75,6 +75,13 @@ decoded bytes: 3,977,343 bytes, SHA-256
 Controlled isolated CUSTOM retests did not reproduce earlier ambiguous fallback
 observations; no confirmed product bug remains.
 
+## Stage 6B GUI retry validation status
+
+- GUI external-key retry workflow: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
+- Real QMC STag probe: `REAL_PASS`.
+- Real supplied-key decode: `REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`.
+- No real QMC file or EKey was accessed during Stage 6B implementation.
+
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone

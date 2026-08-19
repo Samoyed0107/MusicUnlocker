@@ -5,7 +5,7 @@ export type SelectedInput = { path: string; displayName: string; kind: string }
 export type QueueItem = {
   index: number; sourcePath: string; sourceDisplayName: string; relativePath?: string; outputPath?: string
   family?: string; variant?: string; decodedFormat?: string; sourceBytes: number; sourceBytesKnown: boolean
-  bytesWritten: number; status: string; errorCode?: string; errorDetail?: string; namingFallback?: boolean; namingFallbackReason?: string
+  bytesWritten: number; status: string; errorCode?: string; errorDetail?: string; namingFallback?: boolean; namingFallbackReason?: string; retryableExternalKey?: boolean
 }
 export type AppInfo = { name: string; version: string; maxWorkers: number; supportsDrop: boolean; supportsPause: boolean }
 export type BatchSnapshot = { successes: number; skippedNotEncrypted: number; skippedExisting: number; blockedExternalKey: number; blockedExternalDatabase: number; unsupported: number; unknown: number; failed: number; cancelled: number; bytesWritten: number; results: QueueItem[] }

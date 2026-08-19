@@ -128,7 +128,7 @@ preview, queue, naming, or output state.
 
 ## Current limitations
 
-There is no pause/resume, overwrite mode, source deletion, external-key
+There is no pause/resume, overwrite mode, source deletion, online external-key
 acquisition, KGG database loading, metadata/network access, FFmpeg integration,
 tray support, installer packaging, file association, or explicit theme
 selector. Physical Explorer drag-to-EXE still requires manual verification in
@@ -168,3 +168,21 @@ unsupported WebView codec makes preview unavailable without changing the
 decoder result, which remains `SUCCESS`; Open Output Folder remains available.
 Preview is native browser playback only and does not add metadata networking,
 FFmpeg, transcoding, waveform, or cover-art support.
+
+## Stage 6B external-key retry
+
+`RetryQMCWithExternalKey(batchID, itemIndex)` is the only GUI retry operation.
+It validates the retained completed-batch session and item eligibility before
+opening a backend-owned native file dialog. The dialog returns a path only to
+Go; Go reuses `externalmaterial.ReadEKeyFile`, builds a request-scoped provider,
+and calls the normal `batch.Engine` with the exact source path and captured
+output/naming configuration. React receives only retry state and the ordinary
+non-secret result snapshot.
+
+Cancellation or malformed input leaves the row unchanged and performs no
+decode. A supplied-key decode failure becomes a cautious retryable failure,
+not `QMC_EXTERNAL_KEY_REQUIRED`. On success, the result replaces the original
+queue index, summary counts are recomputed, and the existing preview path is
+usable through the normal `GetPreviewURL` authorization. The native dialog
+title is currently a stable backend string rather than frontend-localized;
+this avoids coupling native dialog code to React localization.
