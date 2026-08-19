@@ -13,11 +13,14 @@ export function AudioPreview({ item, batchId, api, onClose, onError }: { item?: 
   const {t}=useTranslation()
   const audio = useRef<HTMLAudioElement>(null)
   const request = useRef(0)
+  const onErrorRef = useRef(onError)
   const [url, setUrl] = useState('')
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
   const [failed, setFailed] = useState(false)
+
+  useEffect(() => { onErrorRef.current = onError }, [onError])
 
   useEffect(() => {
     const element = audio.current
@@ -32,9 +35,9 @@ export function AudioPreview({ item, batchId, api, onClose, onError }: { item?: 
       setUrl(response.url)
       element.src = response.url
       void element.play().then(() => { if (request.current === generation) setPlaying(true) }).catch(() => {})
-    }).catch((error: any) => { if (request.current === generation) onError(String(error)) })
+    }).catch((error: any) => { if (request.current === generation) onErrorRef.current(String(error)) })
     return () => { element.pause(); element.removeAttribute('src'); element.load() }
-  }, [item?.index, batchId, api, onError])
+  }, [item?.index, batchId, api])
 
   if (!item) return null
   const toggle = () => { const element = audio.current; if (!element) return; if (element.paused) void element.play().then(() => setPlaying(true)); else { element.pause(); setPlaying(false) } }

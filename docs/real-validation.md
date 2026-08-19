@@ -43,6 +43,21 @@ No real audio or decoded output is stored in this repository.
   `Localization interpolation mismatch: batch.itemsAdded`; the favicon 404 was
   non-causal. A corrected production EXE has not yet been physically confirmed.
 
+## Stage 5F1 real validation
+
+- Production GUI startup after the localization fix: `REAL_PASS`.
+- English, Simplified Chinese, and follow-system localization: `REAL_PASS`.
+- Stage 5E2 CUSTOM `{source}` naming: `REAL_PASS`; observed output was
+  `Gabrielle Aplin - Salvation(1)-TEST.mp3`.
+- Decoded audio SHA-256: `REAL_PASS`; `AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`.
+
+## Stage 5F2 playback continuity
+
+- Language switching presentation: manually observed working.
+- Playback continuity across language switching: `REAL_FAIL / FIX_IMPLEMENTED /
+  REAL_RETEST_PENDING`. The player previously reloaded when the localized
+  error callback changed; the corrected build requires user retest.
+
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone

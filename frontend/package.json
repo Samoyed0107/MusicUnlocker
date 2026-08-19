@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test:i18n": "node --experimental-strip-types scripts/i18n-smoke.mjs",
+    "test:preview": "node scripts/preview-smoke.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

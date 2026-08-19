@@ -32,5 +32,16 @@ Add bundled GUI localization with live `SYSTEM`, `zh-CN`, and `en-US`
 selection, persisted stable preference values, English fallback, and typed
 resource/interpolation parity validation. The `batch.itemsAdded` parity defect
 was fixed, runtime mismatches fall back safely to English, and the corrected
-production GUI still requires real retest. Machine statuses, error codes,
-naming modes, and template tokens remain unchanged.
+production GUI was real-validated. Stage 5F2 playback continuity still
+requires real retest. Machine statuses, error codes, naming modes, and template
+tokens remain unchanged.
+
+## Stage 5F2
+
+Preserve active preview media across language changes and move the batch status
+badge into the batch action area. Automated validation is implemented; playback
+continuity requires real retest.
+
+## Planned: Stage 5G
+
+Reserved for the next planned product stage.
