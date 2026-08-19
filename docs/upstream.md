@@ -89,3 +89,25 @@ MusicEx uses upstream `QMCKeys` keyed by its embedded media filename. Decode
 itself performs no network access. The package also contains a separate QQ
 Music HTTP client for optional metadata/cover methods, which MusicUnlocker does
 not call in its decode pipeline.
+
+## Stage 6C KGM V5/KGG findings
+
+`algo/kgm` reads `CryptoVersion` from the KGM header. Version 3 constructs its
+existing self-contained Kugou cipher. Version 5 requires
+`common.CryptoParams.KggDbPath`, reads the supplied path with `os.ReadFile`,
+and calls `pc_kugou_db.CachedDumpEKey`. The helper accepts either a plaintext
+SQLite file beginning with `SQLite format 3\x00` or the encrypted Kugou
+database format: 0x400-byte pages decrypted with the pinned AES-128 page-key/IV
+scheme. It imports the result into an in-memory SQLite database and queries
+`ShareFileItems(EncryptionKeyId, EncryptionKey)` for a non-empty key. The
+lookup identifier is the KGM header `AudioHash`; the resulting EKey is passed
+to the existing QMC EKey cipher. One database path is sufficient, and no other
+Kugou file is requested by this path. The helper performs no network access.
+
+The helper caches decoded mappings process-wide by database path and reads its
+cache map outside its mutex, so the MusicUnlocker adapter serializes only the
+upstream database-backed decoder initialization. The upstream helper uses
+`os.ReadFile` and an in-memory SQLite database rather than opening the source
+database through SQLite; validation and lookup therefore create no source-side
+WAL, SHM, journal, or migration writes. MusicUnlocker additionally bounds and
+checks the user-supplied regular file before invoking it.

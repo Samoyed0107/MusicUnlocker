@@ -6,6 +6,7 @@ require (
 	git.um-react.app/um/cli v0.2.19
 	github.com/wailsapp/wails/v2 v2.15.0
 	go.uber.org/zap v1.27.0
+	modernc.org/sqlite v1.40.0
 )
 
 require (
@@ -49,5 +50,4 @@ require (
 	modernc.org/libc v1.66.10 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.40.0 // indirect
 )

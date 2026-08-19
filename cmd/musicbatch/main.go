@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"musicunlocker/internal/batch"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
 )
 
@@ -23,6 +24,7 @@ func run(args []string, out, errOut io.Writer) int {
 	jobs := flags.Int("jobs", 1, "maximum concurrent decode workers")
 	nameMode := flags.String("name-mode", "source", "source, title, artist-title, title-artist, track-title, artist-album-track-title")
 	nameTemplate := flags.String("name-template", "", "custom output-name template")
+	kggDatabase := flags.String("kgg-database", "", "path to a local Kugou KGG database for compatible files")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -35,7 +37,11 @@ func run(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, err)
 		return 2
 	}
-	summary, err := (batch.Engine{}).Run(context.Background(), batch.Request{Inputs: flags.Args(), OutputRoot: *outDir, MaxWorkers: *jobs, Naming: config})
+	var databaseProvider externalmaterial.KGGDatabaseProvider
+	if *kggDatabase != "" {
+		databaseProvider = externalmaterial.StaticKGGDatabaseProvider{Database: externalmaterial.KGGDatabase{Path: *kggDatabase}}
+	}
+	summary, err := (batch.Engine{}).Run(context.Background(), batch.Request{Inputs: flags.Args(), OutputRoot: *outDir, MaxWorkers: *jobs, Naming: config, KGGDatabaseProvider: databaseProvider})
 	if err != nil {
 		fmt.Fprintln(errOut, err)
 		return 2

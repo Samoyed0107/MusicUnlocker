@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"musicunlocker/internal/decoder/upstream"
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/probe"
 )
 
@@ -16,7 +17,20 @@ func (DefaultResolver) Resolve(input *Input) (Stream, error) {
 	switch input.Probe.Family {
 	case probe.FamilyKugou:
 		if input.Probe.CryptoVersion == 5 {
-			return nil, coded(CodeKGGDatabaseRequired, errors.New("KGM CryptoVersion 5 requires KGMusicV3.db"))
+			if input.KGGDatabase == nil {
+				return nil, coded(CodeKGGDatabaseRequired, errors.New("KGM CryptoVersion 5 requires an external KGG database"))
+			}
+			if err := externalmaterial.ValidateKGGDatabasePath(input.KGGDatabase.Path); err != nil {
+				return nil, coded(CodeKGGDatabaseInvalid, err)
+			}
+			stream, err := upstream.DecodeKGMWithDatabase(input.Reader, input.Path, input.KGGDatabase.Path)
+			if errors.Is(err, upstream.ErrKGGDatabaseEntryNotFound) {
+				return nil, coded(CodeKGGDatabaseEntryMissing, errors.New("the supplied KGG database has no matching entry"))
+			}
+			if err != nil {
+				return nil, coded(CodeKGGDatabaseInvalid, errors.New("the supplied KGG database could not be used"))
+			}
+			return stream, nil
 		}
 		if input.Probe.CryptoVersion != 3 {
 			return nil, coded(CodeUnsupportedEncrypted, errors.New("Kugou crypto version is not supported in Stage 3C"))

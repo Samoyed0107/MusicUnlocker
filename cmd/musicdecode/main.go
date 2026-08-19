@@ -21,6 +21,7 @@ func run(args []string, out, errOut io.Writer) int {
 	nameMode := flags.String("name-mode", "source", "source, title, artist-title, title-artist, track-title, artist-album-track-title")
 	nameTemplate := flags.String("name-template", "", "custom output-name template")
 	ekeyFile := flags.String("qmc-ekey-file", "", "file containing a canonical Base64 QMC external EKey")
+	kggDatabase := flags.String("kgg-database", "", "path to a local Kugou KGG database")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -42,7 +43,11 @@ func run(args []string, out, errOut io.Writer) int {
 		}
 		provider = externalmaterial.NewMapProvider(map[string][]byte{flags.Arg(0): key})
 	}
-	result, err := decode.DecodeFile(context.Background(), flags.Arg(0), decode.Options{OutDir: *outDir, Naming: config, ExternalMaterialProvider: provider})
+	var databaseProvider externalmaterial.KGGDatabaseProvider
+	if *kggDatabase != "" {
+		databaseProvider = externalmaterial.StaticKGGDatabaseProvider{Database: externalmaterial.KGGDatabase{Path: *kggDatabase}}
+	}
+	result, err := decode.DecodeFile(context.Background(), flags.Arg(0), decode.Options{OutDir: *outDir, Naming: config, ExternalMaterialProvider: provider, KGGDatabaseProvider: databaseProvider})
 	if err != nil {
 		writeError(errOut, err)
 		return 1

@@ -56,3 +56,6 @@
   errors. Missing material is a blocked state, not a generic decode failure.
 - Frontend code must never receive raw external decryption material or its
   selected file path; native selection and consumption remain backend-owned.
+- External decoder databases are explicit runtime inputs only. Database access
+  must be read-only with no automatic user-data scanning or sidecar mutation;
+  KGM V3 must not depend on KGG database support.

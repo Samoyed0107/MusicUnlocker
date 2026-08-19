@@ -23,6 +23,7 @@ type Input struct {
 	Probe            probe.Result
 	Reader           io.ReadSeeker
 	ExternalMaterial []byte
+	KGGDatabase      *externalmaterial.KGGDatabase
 }
 type Resolver interface{ Resolve(*Input) (Stream, error) }
 type Progress struct {
@@ -35,6 +36,7 @@ type Options struct {
 	Progress                 func(Progress)
 	Naming                   naming.Config
 	ExternalMaterialProvider externalmaterial.Provider
+	KGGDatabaseProvider      externalmaterial.KGGDatabaseProvider
 }
 type Result struct {
 	InputPath, OutputPath, EncryptedFamily, EncryptedVariant, DecodedFormat string
@@ -94,6 +96,15 @@ func PrepareFile(ctx context.Context, inputPath string, options Options) (Prepar
 		}
 		if ok {
 			in.ExternalMaterial = material
+		}
+	}
+	if p.Family == probe.FamilyKugou && p.CryptoVersion == 5 && options.KGGDatabaseProvider != nil {
+		database, ok, providerErr := options.KGGDatabaseProvider.ResolveKGGDatabase(ctx, inputPath)
+		if providerErr != nil {
+			return PreparedResult{Result: r}, coded(CodeKGGDatabaseProvider, errors.New("KGG database provider failed"))
+		}
+		if ok {
+			in.KGGDatabase = &database
 		}
 	}
 	stream, e := options.Resolver.Resolve(in)

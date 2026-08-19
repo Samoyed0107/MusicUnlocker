@@ -4,6 +4,8 @@ import { classifyStatus, QueueItem } from '../api'
 const errorKeys: Record<string, any> = {
   QMC_EXTERNAL_KEY_REQUIRED: 'errors.qmcKey',
   QMC_EXTERNAL_KEY_ATTEMPT_FAILED: 'errors.qmcKeyAttemptFailed',
+  KGG_DATABASE_INVALID: 'errors.kggDatabaseInvalid', KGG_DATABASE_ENTRY_NOT_FOUND: 'errors.kggDatabaseEntryMissing',
+  KGG_DATABASE_PROVIDER_FAILED: 'errors.kggDatabaseProvider',
   KGG_DATABASE_REQUIRED: 'errors.kggDatabase', DISCOVERY_ERROR: 'errors.discovery',
   OUTPUT_EXISTS: 'errors.outputExists', DECODED_AUDIO_FORMAT_UNKNOWN: 'errors.unknownAudio',
   PREVIEW_FILE_MISSING: 'errors.previewMissing', PREVIEW_SERVER_UNAVAILABLE: 'errors.previewUnavailable',

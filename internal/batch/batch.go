@@ -40,11 +40,12 @@ const (
 )
 
 type Request struct {
-	Inputs                   []string                  `json:"inputs"`
-	OutputRoot               string                    `json:"outputRoot"`
-	MaxWorkers               int                       `json:"maxWorkers"`
-	Naming                   naming.Config             `json:"naming,omitempty"`
-	ExternalMaterialProvider externalmaterial.Provider `json:"-"`
+	Inputs                   []string                             `json:"inputs"`
+	OutputRoot               string                               `json:"outputRoot"`
+	MaxWorkers               int                                  `json:"maxWorkers"`
+	Naming                   naming.Config                        `json:"naming,omitempty"`
+	ExternalMaterialProvider externalmaterial.Provider            `json:"-"`
+	KGGDatabaseProvider      externalmaterial.KGGDatabaseProvider `json:"-"`
 }
 
 type Result struct {
@@ -197,7 +198,7 @@ func (e Engine) Run(ctx context.Context, req Request) (Summary, error) {
 		item.targetKey, _ = outputplan.TargetKey(outputplan.Request{InputPath: item.file.path, OutputDir: filepath.Join(outputRoot, item.file.outputRelativeDir), Probe: p})
 	}
 	if ctx.Err() == nil {
-		runGroups(ctx, e, items, workers, outputRoot, req.Naming, req.ExternalMaterialProvider)
+		runGroups(ctx, e, items, workers, outputRoot, req.Naming, req.ExternalMaterialProvider, req.KGGDatabaseProvider)
 	} else {
 		for _, item := range items {
 			if item.file != nil && item.runnable && item.result.Status == "" {
@@ -294,7 +295,7 @@ func finishCancelled(e Engine, item *queueItem) {
 	e.emit(eventFor(EventFinished, item.result))
 }
 
-func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string, config naming.Config, provider externalmaterial.Provider) {
+func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int, outputRoot string, config naming.Config, provider externalmaterial.Provider, databaseProvider externalmaterial.KGGDatabaseProvider) {
 	groupsByKey := map[string]*workGroup{}
 	var groups []*workGroup
 	for _, item := range items {
@@ -324,7 +325,7 @@ func runGroups(ctx context.Context, e Engine, items []*queueItem, maxWorkers int
 		go func() {
 			defer wg.Done()
 			for group := range jobs {
-				processGroup(ctx, e, group, outputRoot, config, provider, gate)
+				processGroup(ctx, e, group, outputRoot, config, provider, databaseProvider, gate)
 			}
 		}()
 	}
@@ -350,7 +351,7 @@ dispatchLoop:
 	}
 }
 
-func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string, config naming.Config, provider externalmaterial.Provider, gate *commitGate) {
+func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot string, config naming.Config, provider externalmaterial.Provider, databaseProvider externalmaterial.KGGDatabaseProvider, gate *commitGate) {
 	for position, item := range group.items {
 		if ctx.Err() != nil {
 			for _, remaining := range group.items[position:] {
@@ -371,7 +372,7 @@ func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot st
 		var decoded decode.Result
 		var decodeErr error
 		if e.Decoder == nil && config.Mode != naming.KeepSource {
-			prepared, prepareErr := decode.PrepareFile(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider})
+			prepared, prepareErr := decode.PrepareFile(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider, KGGDatabaseProvider: databaseProvider})
 			if prepareErr == nil {
 				if waitErr := gate.wait(ctx, item.result.Index); waitErr != nil {
 					prepared.Abort()
@@ -390,7 +391,7 @@ func processGroup(ctx context.Context, e Engine, group *workGroup, outputRoot st
 			if decoder == nil {
 				decoder = decode.DecodeFile
 			}
-			decoded, decodeErr = decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider})
+			decoded, decodeErr = decoder(ctx, item.file.path, decode.Options{OutDir: outDir, Progress: progress, Naming: config, ExternalMaterialProvider: provider, KGGDatabaseProvider: databaseProvider})
 		}
 		item.result.OutputPath, item.result.DecodedAudioFormat, item.result.BytesWritten = decoded.OutputPath, decoded.DecodedFormat, decoded.BytesWritten
 		item.result.RequestedNamingMode, item.result.ActualNamingMode = string(decoded.Naming.RequestedMode), string(decoded.Naming.UsedMode)
@@ -599,6 +600,8 @@ func mapError(err error) (Status, string, string) {
 		return StatusBlockedExternalKey, string(decode.CodeQMCExternalKeyRequired), err.Error()
 	case decode.CodeKGGDatabaseRequired:
 		return StatusBlockedExternalDatabase, string(decode.CodeKGGDatabaseRequired), err.Error()
+	case decode.CodeKGGDatabaseEntryMissing:
+		return StatusFailed, string(decode.CodeKGGDatabaseEntryMissing), err.Error()
 	case decode.CodeUnsupportedEncrypted:
 		return StatusUnsupported, string(decode.CodeUnsupportedEncrypted), err.Error()
 	case decode.CodeUnknownFormat:

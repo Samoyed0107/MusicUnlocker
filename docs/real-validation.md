@@ -82,6 +82,16 @@ observations; no confirmed product bug remains.
 - Real supplied-key decode: `REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`.
 - No real QMC file or EKey was accessed during Stage 6B implementation.
 
+## Stage 6C KGM V5/KGG validation status
+
+- KGM V3: `REAL_PASS` (existing evidence unchanged).
+- KGM V5/KGG database Core: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
+- Synthetic plaintext SQLite lookup: passed; matching and missing `AudioHash`
+  cases were exercised without copyrighted or user data.
+- Real KGM V5/KGG supplied-database decode:
+  `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
+- No real KGG database or KGM V5 file was accessed.
+
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone

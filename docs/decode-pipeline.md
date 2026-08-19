@@ -20,6 +20,7 @@ upstream `Validate`.
 | KWM | implemented offline | tested | pending | none |
 | QMC static/embedded-key/QTag candidates | implemented offline | tested at adapter boundary | pending | none for self-contained files |
 | QMC STag/MusicEx | supplied-key adapter; missing material blocked | provider/adapter tested | probe real-pass | real supplied-key validation pending |
+| KGM V5/KGG | supplied database adapter; missing material blocked | synthetic DB lookup tested | pending external database | per-source KGG database |
 | TM | implemented offline | tested | pending | none |
 | Xiami | implemented offline | tested | pending | none |
 | Ximalaya | controlled candidate validation | tested | pending | none |
@@ -36,6 +37,12 @@ QTag may use the canonical self-contained decoder.
 Stage 6B supplies external material only after an eligible blocked result. The
 GUI does not create a second decoder path: the normal resolver, content sniff,
 metadata, naming, and atomic finalization pipeline is reused.
+
+Stage 6C resolves a KGG database only for probed Kugou `CryptoVersion == 5`.
+KGM V3 never consults a database provider and retains its existing static-key
+decoder path. KGM V5 passes the validated database path through the upstream
+adapter, which performs the `AudioHash` lookup before returning the decoder;
+the database path and derived key do not enter Core results.
 
 For files without strong content evidence, only these distinctive candidates
 are considered, in deterministic priority order:

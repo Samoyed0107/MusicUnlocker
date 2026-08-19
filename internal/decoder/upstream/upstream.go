@@ -10,21 +10,25 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"unicode"
 
 	"git.um-react.app/um/cli/algo/common"
+	"git.um-react.app/um/cli/algo/kgm"
 	"git.um-react.app/um/cli/algo/qmc"
 	"git.um-react.app/um/cli/algo/tm"
 	"git.um-react.app/um/cli/algo/xiami"
 	"git.um-react.app/um/cli/algo/ximalaya"
 	"go.uber.org/zap"
 
-	_ "git.um-react.app/um/cli/algo/kgm"
 	_ "git.um-react.app/um/cli/algo/kwm"
 	_ "git.um-react.app/um/cli/algo/ncm"
 )
 
 type Stream interface{ io.Reader }
+
+var ErrKGGDatabaseEntryNotFound = errors.New("KGG database entry not found")
+var kggDatabaseLookupMu sync.Mutex
 
 type NCMMetadata struct {
 	Title, Artist, Album string
@@ -63,6 +67,27 @@ func decodeWith(reader io.ReadSeeker, path, suffix string) (Stream, error) {
 // The application-facing decode package never depends on upstream decoder types.
 func DecodeKGM(reader io.ReadSeeker, path string) (Stream, error) {
 	return decodeWith(reader, path, ".kgm")
+}
+
+// DecodeKGMWithDatabase supplies the application-validated database path to
+// the pinned upstream KGM decoder. The mutex protects the upstream process
+// cache and database import; it is released before audio reads begin.
+func DecodeKGMWithDatabase(reader io.ReadSeeker, path, databasePath string) (Stream, error) {
+	kggDatabaseLookupMu.Lock()
+	defer kggDatabaseLookupMu.Unlock()
+	create := func(p *common.DecoderParams) common.Decoder {
+		p.CryptoParams.KggDbPath = databasePath
+		return decoderForKGM(p)
+	}
+	stream, err := decodeFactory(reader, path, create)
+	if err != nil && strings.Contains(err.Error(), "ekey missing from db") {
+		return nil, ErrKGGDatabaseEntryNotFound
+	}
+	return stream, err
+}
+
+func decoderForKGM(p *common.DecoderParams) common.Decoder {
+	return kgm.NewDecoder(p)
 }
 
 func DecodeNCM(reader io.ReadSeeker, path string) (Stream, error) {

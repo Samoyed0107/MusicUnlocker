@@ -14,6 +14,7 @@
 | 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
 | 6A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
 | 6B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_QMC_EKEY_GUI_RETEST_PENDING` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
+| 6C | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -43,3 +44,11 @@ selected blocked item is retried; its stable queue index is replaced in the
 latest snapshot and summary counts are recomputed. Raw key material and the
 selected key path remain backend-only. Real supplied-key QMC validation remains
 pending.
+
+Stage 6C supplies KGM V5 with an explicit per-source KGG database capability.
+The pinned upstream helper reads the supplied database into memory, imports it
+into an in-memory SQLite database, and queries `ShareFileItems` by the KGM
+header's `AudioHash`. Database lookup is narrowly serialized around upstream
+initialization because the upstream process cache is not concurrency-safe;
+audio reads remain outside that lock. No database path or contents are
+persisted, and the GUI database-selection workflow remains deferred.

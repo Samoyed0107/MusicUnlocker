@@ -66,3 +66,14 @@ file parsing reuses the Stage 6A bounded Base64 parser; malformed files do not
 start decoding. Results replace the original queue index and summary counts
 are recalculated. Keys and key paths are never persisted or sent to React.
 Real supplied-key QMC GUI validation remains pending; Stage 6C is not started.
+
+## Stage 6C
+
+KGM V5/KGG now accepts an explicit, per-source application-owned database
+provider. The adapter uses the pinned upstream path-based helper and retains
+KGM V3's self-contained path. Database paths are validated as bounded regular
+files without opening SQLite in the source directory; upstream imports data
+into memory. `musicdecode` and `musicbatch` accept `--kgg-database` for future
+offline validation. Missing databases remain blocked, while a supplied
+database with no matching `AudioHash` is reported separately. Real KGM V5/KGG
+decode remains pending; Stage 6D GUI database selection is not started.

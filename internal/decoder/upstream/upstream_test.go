@@ -2,11 +2,16 @@ package upstream
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/binary"
+	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	canonicalqmc "git.um-react.app/um/cli/algo/qmc"
+	_ "modernc.org/sqlite"
 )
 
 func syntheticKGMV3() []byte {
@@ -16,6 +21,54 @@ func syntheticKGMV3() []byte {
 	binary.LittleEndian.PutUint32(b[0x14:], 3)
 	binary.LittleEndian.PutUint32(b[0x18:], 1)
 	return b
+}
+
+func syntheticKGMV5(audioHash string) []byte {
+	b := make([]byte, 72+len(audioHash))
+	copy(b, []byte{0x7c, 0xd5, 0x32, 0xeb, 0x86, 0x02, 0x7f, 0x4b, 0xa8, 0xaf, 0xa6, 0x8e, 0x0f, 0xff, 0x99, 0x14})
+	binary.LittleEndian.PutUint32(b[0x10:], 60)
+	binary.LittleEndian.PutUint32(b[0x14:], 5)
+	binary.LittleEndian.PutUint32(b[0x18:], 1)
+	binary.LittleEndian.PutUint32(b[68:], uint32(len(audioHash)))
+	copy(b[72:], audioHash)
+	return b
+}
+
+func makeSyntheticKGGDatabase(t *testing.T, keyID, key string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "kgg.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`create table ShareFileItems (EncryptionKeyId text, EncryptionKey text)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`insert into ShareFileItems (EncryptionKeyId, EncryptionKey) values (?, ?)`, keyID, key); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestDecodeKGMV5DatabaseLookupBoundary(t *testing.T) {
+	dbPath := makeSyntheticKGGDatabase(t, "other-hash", "not-base64")
+	if _, err := DecodeKGMWithDatabase(bytes.NewReader(syntheticKGMV5("wanted-hash")), "input.kgm", dbPath); !errors.Is(err, ErrKGGDatabaseEntryNotFound) {
+		t.Fatalf("missing entry error=%v", err)
+	}
+	dbPath = makeSyntheticKGGDatabase(t, "wanted-hash", "not-base64")
+	if _, err := DecodeKGMWithDatabase(bytes.NewReader(syntheticKGMV5("wanted-hash")), "input.kgm", dbPath); errors.Is(err, ErrKGGDatabaseEntryNotFound) || err == nil {
+		t.Fatalf("matching entry was not passed to decoder: %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(dbPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("unexpected database sidecar files: %+v", entries)
+	}
 }
 
 func TestDecodeKGMRejectsMalformedInput(t *testing.T) {

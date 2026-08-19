@@ -3,12 +3,14 @@ package decode
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/probe"
 )
 
@@ -20,6 +22,13 @@ type fakeResolver struct {
 type recordingMaterialProvider struct {
 	path     string
 	material []byte
+}
+
+type recordingDBProvider struct{ calls int }
+
+func (p *recordingDBProvider) ResolveKGGDatabase(context.Context, string) (externalmaterial.KGGDatabase, bool, error) {
+	p.calls++
+	return externalmaterial.KGGDatabase{}, false, nil
 }
 
 func (p *recordingMaterialProvider) ResolveQMCExternalKey(_ context.Context, path string) ([]byte, bool, error) {
@@ -145,6 +154,23 @@ func TestExternalMaterialProviderIsResolvedOnlyForRequiredQMC(t *testing.T) {
 	}
 	if provider.path != "" {
 		t.Fatalf("provider was consulted for self-contained input: %q", provider.path)
+	}
+}
+
+func TestKGMV3DoesNotConsultDatabaseProvider(t *testing.T) {
+	header := make([]byte, 64)
+	copy(header, []byte{0x7c, 0xd5, 0x32, 0xeb, 0x86, 0x02, 0x7f, 0x4b, 0xa8, 0xaf, 0xa6, 0x8e, 0x0f, 0xff, 0x99, 0x14})
+	binary.LittleEndian.PutUint32(header[0x10:], 60)
+	binary.LittleEndian.PutUint32(header[0x14:], 3)
+	binary.LittleEndian.PutUint32(header[0x18:], 1)
+	in := writeInput(t, "v3.kgm", header)
+	provider := &recordingDBProvider{}
+	_, err := DecodeFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: append([]byte("ID3"), []byte("audio")...)}, KGGDatabaseProvider: provider})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.calls != 0 {
+		t.Fatalf("KGM V3 consulted database provider %d times", provider.calls)
 	}
 }
 

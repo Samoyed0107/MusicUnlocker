@@ -126,6 +126,12 @@ The GUI's Stage 6B retry invokes this same engine for a single source path with
 the captured output root, naming configuration, and a request-scoped provider.
 It does not rerun the original batch or mutate other queue items.
 
+Stage 6C adds a separate `KGGDatabaseProvider` field to `batch.Request`. It is
+resolved only for KGM V5 sources, can map different source files to different
+database paths, and is passed to each normal decode worker. A shared static
+database provider is suitable for the CLI; provider lookup is not a global
+decode lock.
+
 ## Developer CLI
 
 ```text
