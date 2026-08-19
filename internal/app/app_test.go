@@ -186,6 +186,49 @@ type retryDialogs struct {
 
 func (d retryDialogs) SelectQMCExternalKeyFile() (string, error) { return d.keyPath, d.err }
 
+type kggDialogs struct {
+	emptyDialogs
+	paths []string
+	calls int
+}
+
+func (d *kggDialogs) SelectKGGDatabaseFile() (string, error) {
+	if d.calls >= len(d.paths) {
+		return "", nil
+	}
+	path := d.paths[d.calls]
+	d.calls++
+	return path, nil
+}
+
+type kggRetryEngine struct {
+	mu       sync.Mutex
+	calls    int
+	paths    []string
+	database []string
+	items    []batch.Result
+}
+
+func (e *kggRetryEngine) Run(ctx context.Context, req batch.Request) (batch.Summary, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.calls++
+	if len(req.Inputs) == 1 && req.KGGDatabaseProvider != nil {
+		db, ok, err := req.KGGDatabaseProvider.ResolveKGGDatabase(ctx, req.Inputs[0])
+		if err != nil || !ok {
+			return batch.Summary{}, errors.New("database provider unavailable")
+		}
+		e.paths = append(e.paths, req.Inputs[0])
+		e.database = append(e.database, db.Path)
+		return batch.Summary{Results: []batch.Result{{Index: 0, SourcePath: req.Inputs[0], Status: batch.StatusSuccess, OutputPath: filepath.Join(req.OutputRoot, filepath.Base(req.Inputs[0])+".mp3"), BytesWritten: 9}}}, nil
+	}
+	return batch.Summary{Results: append([]batch.Result(nil), e.items...)}, nil
+}
+
+func (e *kggRetryEngine) RunWithObserver(ctx context.Context, req batch.Request, _ batch.Observer) (batch.Summary, error) {
+	return e.Run(ctx, req)
+}
+
 type retryEngine struct {
 	mu       sync.Mutex
 	calls    int
@@ -330,6 +373,93 @@ func TestRetryRejectsSuccessAndUnrelatedFailure(t *testing.T) {
 		if err := a.RetryQMCWithExternalKey(id.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
 			t.Fatalf("status=%s error=%v", status, err)
 		}
+	}
+}
+
+func TestKGGRetryCancellationAndInvalidDatabaseDoNotDecode(t *testing.T) {
+	dir := t.TempDir()
+	valid := filepath.Join(dir, "valid.db")
+	if err := os.WriteFile(valid, []byte("SQLite format 3\x00synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for name, selected := range map[string]string{"cancel": "", "invalid": filepath.Join(dir, "missing.db")} {
+		e := &kggRetryEngine{items: []batch.Result{{Index: 0, SourcePath: `C:\song.kgm`, Status: batch.StatusBlockedExternalDatabase, ErrorCode: "KGG_DATABASE_REQUIRED"}}}
+		d := &kggDialogs{paths: []string{selected}}
+		sink := &fakeSink{}
+		a := New(e, sink, d)
+		id, err := a.StartBatch(validRequest())
+		if err != nil {
+			t.Fatal(err)
+		}
+		waitComplete(sink, 1)
+		err = a.RetryKGGWithDatabase(id.BatchID, 0)
+		if name == "cancel" && err != nil {
+			t.Fatalf("cancel err=%v", err)
+		}
+		if name == "invalid" && (err == nil || !strings.Contains(err.Error(), "KGG_DATABASE_INVALID")) {
+			t.Fatalf("invalid err=%v", err)
+		}
+		e.mu.Lock()
+		calls := e.calls
+		e.mu.Unlock()
+		if calls != 1 {
+			t.Fatalf("%s decode calls=%d", name, calls)
+		}
+	}
+}
+
+func TestKGGRetryUsesExactDatabaseAndReplacesSummary(t *testing.T) {
+	dir := t.TempDir()
+	dbA, dbB := filepath.Join(dir, "a.db"), filepath.Join(dir, "b.db")
+	for _, path := range []string{dbA, dbB} {
+		if err := os.WriteFile(path, []byte("SQLite format 3\x00synthetic"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := &kggRetryEngine{items: []batch.Result{
+		{Index: 0, SourcePath: `C:\a.kgm`, Status: batch.StatusBlockedExternalDatabase, ErrorCode: "KGG_DATABASE_REQUIRED"},
+		{Index: 1, SourcePath: `C:\b.kgm`, Status: batch.StatusBlockedExternalDatabase, ErrorCode: "KGG_DATABASE_REQUIRED"},
+	}}
+	d := &kggDialogs{paths: []string{dbA, dbB}}
+	sink := &fakeSink{}
+	a := New(e, sink, d)
+	id, err := a.StartBatch(BatchStartRequest{Inputs: []string{`C:\a.kgm`, `C:\b.kgm`}, OutputRoot: `C:\out`, MaxWorkers: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitComplete(sink, 1)
+	if err := a.RetryKGGWithDatabase(id.BatchID, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.RetryKGGWithDatabase(id.BatchID, 1); err != nil {
+		t.Fatal(err)
+	}
+	complete := latestComplete(sink)
+	if complete.Snapshot.Successes != 2 || complete.Snapshot.BlockedExternalDatabase != 0 || len(complete.Snapshot.Results) != 2 {
+		t.Fatalf("snapshot=%+v", complete.Snapshot)
+	}
+	if complete.Snapshot.Results[0].Index != 0 || complete.Snapshot.Results[1].Index != 1 {
+		t.Fatalf("results=%+v", complete.Snapshot.Results)
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.database) != 2 || e.database[0] != dbA || e.database[1] != dbB || e.paths[0] != `C:\a.kgm` || e.paths[1] != `C:\b.kgm` {
+		t.Fatalf("paths=%v databases=%v", e.paths, e.database)
+	}
+}
+
+func TestKGGRetryRejectsWrongMaterialRows(t *testing.T) {
+	e := &retryEngine{}
+	sink := &fakeSink{}
+	d := &kggDialogs{}
+	a := New(e, sink, d)
+	id, err := a.StartBatch(validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitComplete(sink, 1)
+	if err := a.RetryKGGWithDatabase(id.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
+		t.Fatalf("wrong material err=%v", err)
 	}
 }
 

@@ -65,7 +65,8 @@ naming snapshot is retained in memory for the active completed batch. Valid
 file parsing reuses the Stage 6A bounded Base64 parser; malformed files do not
 start decoding. Results replace the original queue index and summary counts
 are recalculated. Keys and key paths are never persisted or sent to React.
-Real supplied-key QMC GUI validation remains pending; Stage 6C is not started.
+Real supplied-key QMC GUI validation remains pending; Stage 6C core is
+complete and its real database-backed validation remains pending.
 
 ## Stage 6C
 
@@ -76,4 +77,15 @@ files without opening SQLite in the source directory; upstream imports data
 into memory. `musicdecode` and `musicbatch` accept `--kgg-database` for future
 offline validation. Missing databases remain blocked, while a supplied
 database with no matching `AudioHash` is reported separately. Real KGM V5/KGG
-decode remains pending; Stage 6D GUI database selection is not started.
+decode remains pending.
+
+## Stage 6D
+
+`RetryKGGWithDatabase(batchID, itemIndex)` is a backend-only native database
+chooser and per-item retry. It reuses Stage 6C bounded read-only validation and
+the Stage 6B completed-batch snapshot, while keeping KGG database capability
+typed separately from QMC EKeys. Database paths are request-scoped and never
+reach React or preferences. A selected row is replaced at the same queue
+index, summaries are recomputed, normal naming/finalization and preview are
+used, and cancellation or invalid databases leave the row retryable. Real
+database-backed KGM V5/KGG GUI validation remains pending.

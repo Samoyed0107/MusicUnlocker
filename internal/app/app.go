@@ -64,23 +64,24 @@ type AppInfo struct {
 }
 
 type QueueItem struct {
-	Index                int    `json:"index"`
-	SourcePath           string `json:"sourcePath"`
-	SourceDisplayName    string `json:"sourceDisplayName"`
-	RelativePath         string `json:"relativePath,omitempty"`
-	OutputPath           string `json:"outputPath,omitempty"`
-	Family               string `json:"family,omitempty"`
-	Variant              string `json:"variant,omitempty"`
-	DecodedFormat        string `json:"decodedFormat,omitempty"`
-	SourceBytes          int64  `json:"sourceBytes"`
-	SourceBytesKnown     bool   `json:"sourceBytesKnown"`
-	BytesWritten         int64  `json:"bytesWritten"`
-	Status               string `json:"status"`
-	ErrorCode            string `json:"errorCode,omitempty"`
-	ErrorDetail          string `json:"errorDetail,omitempty"`
-	RetryableExternalKey bool   `json:"retryableExternalKey,omitempty"`
-	NamingFallback       bool   `json:"namingFallback,omitempty"`
-	NamingFallbackReason string `json:"namingFallbackReason,omitempty"`
+	Index                     int    `json:"index"`
+	SourcePath                string `json:"sourcePath"`
+	SourceDisplayName         string `json:"sourceDisplayName"`
+	RelativePath              string `json:"relativePath,omitempty"`
+	OutputPath                string `json:"outputPath,omitempty"`
+	Family                    string `json:"family,omitempty"`
+	Variant                   string `json:"variant,omitempty"`
+	DecodedFormat             string `json:"decodedFormat,omitempty"`
+	SourceBytes               int64  `json:"sourceBytes"`
+	SourceBytesKnown          bool   `json:"sourceBytesKnown"`
+	BytesWritten              int64  `json:"bytesWritten"`
+	Status                    string `json:"status"`
+	ErrorCode                 string `json:"errorCode,omitempty"`
+	ErrorDetail               string `json:"errorDetail,omitempty"`
+	RetryableExternalKey      bool   `json:"retryableExternalKey,omitempty"`
+	RetryableExternalDatabase bool   `json:"retryableExternalDatabase,omitempty"`
+	NamingFallback            bool   `json:"namingFallback,omitempty"`
+	NamingFallbackReason      string `json:"namingFallbackReason,omitempty"`
 }
 
 type ProgressEvent struct {
@@ -125,6 +126,7 @@ type Dialogs interface {
 	SelectOutputFolder() (string, error)
 }
 type EKeyDialog interface{ SelectQMCExternalKeyFile() (string, error) }
+type KGGDatabaseDialog interface{ SelectKGGDatabaseFile() (string, error) }
 type EngineRunner interface {
 	Run(context.Context, batch.Request) (batch.Summary, error)
 }
@@ -156,7 +158,8 @@ type retrySession struct {
 	batchID    uint64
 	outputRoot string
 	naming     naming.Config
-	items      map[int]bool
+	qmcItems   map[int]bool
+	kggItems   map[int]bool
 }
 
 func (a *Application) ReceiveLaunchPaths(event LaunchPathsEvent) {
@@ -324,13 +327,21 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 		copySnapshot := complete.Snapshot
 		copySnapshot.Results = append([]QueueItem(nil), complete.Snapshot.Results...)
 		a.latestID, a.latest = id, &copySnapshot
-		retry := &retrySession{batchID: id, outputRoot: req.OutputRoot, naming: namingConfigFromDTO(req.Naming), items: map[int]bool{}}
+		retry := &retrySession{batchID: id, outputRoot: req.OutputRoot, naming: namingConfigFromDTO(req.Naming), qmcItems: map[int]bool{}, kggItems: map[int]bool{}}
 		for _, item := range copySnapshot.Results {
 			if item.Status == string(batch.StatusBlockedExternalKey) && item.ErrorCode == string("QMC_EXTERNAL_KEY_REQUIRED") {
-				retry.items[item.Index] = true
+				retry.qmcItems[item.Index] = true
 				for i := range copySnapshot.Results {
 					if copySnapshot.Results[i].Index == item.Index {
 						copySnapshot.Results[i].RetryableExternalKey = true
+					}
+				}
+			}
+			if item.Status == string(batch.StatusBlockedExternalDatabase) && item.ErrorCode == string("KGG_DATABASE_REQUIRED") {
+				retry.kggItems[item.Index] = true
+				for i := range copySnapshot.Results {
+					if copySnapshot.Results[i].Index == item.Index {
+						copySnapshot.Results[i].RetryableExternalDatabase = true
 					}
 				}
 			}
@@ -347,6 +358,87 @@ func (a *Application) run(ctx context.Context, id uint64, req BatchStartRequest)
 	for _, event := range a.launchInbox.FlushDeferred() {
 		a.sink.Emit(EventLaunchPaths, event)
 	}
+}
+
+// RetryKGGWithDatabase opens the native picker and retries exactly one KGM V5
+// or KGG source. The selected path remains backend-owned for this request.
+func (a *Application) RetryKGGWithDatabase(batchID uint64, index int) error {
+	dialog, ok := a.dialogs.(KGGDatabaseDialog)
+	if !ok {
+		return &ApplicationError{Code: "DIALOG_UNAVAILABLE", Detail: "KGG database file dialog is unavailable"}
+	}
+	a.mu.Lock()
+	if a.running || a.retrying {
+		a.mu.Unlock()
+		return ErrBatchAlreadyRunning
+	}
+	if a.retry == nil || a.retry.batchID != batchID {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "STALE_BATCH", Detail: "the batch is no longer available for retry"}
+	}
+	if !a.retry.kggItems[index] {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "RETRY_NOT_ELIGIBLE", Detail: "this item is not eligible for KGG database retry"}
+	}
+	var item QueueItem
+	for _, candidate := range a.latest.Results {
+		if candidate.Index == index {
+			item = candidate
+			break
+		}
+	}
+	if item.SourcePath == "" {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "INVALID_ITEM_INDEX", Detail: "the requested batch item does not exist"}
+	}
+	session := *a.retry
+	a.retrying = true
+	a.mu.Unlock()
+	defer func() { a.mu.Lock(); a.retrying = false; a.mu.Unlock() }()
+
+	dbPath, err := dialog.SelectKGGDatabaseFile()
+	if err != nil {
+		return &ApplicationError{Code: "KGG_DATABASE_SELECTION_FAILED", Detail: "the KGG database could not be selected"}
+	}
+	if dbPath == "" {
+		return nil
+	}
+	if err := externalmaterial.ValidateKGGDatabasePath(dbPath); err != nil {
+		return &ApplicationError{Code: "KGG_DATABASE_INVALID", Detail: "the selected KGG database is invalid"}
+	}
+	provider := externalmaterial.StaticKGGDatabaseProvider{Database: externalmaterial.KGGDatabase{Path: dbPath}}
+	summary, runErr := a.engine.Run(context.Background(), batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, KGGDatabaseProvider: provider})
+	if runErr != nil {
+		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the KGG database retry could not be completed"}
+	}
+	if len(summary.Results) == 0 {
+		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the KGG database retry returned no result"}
+	}
+	replacement := itemFrom(summary.Results[0])
+	replacement.Index = index
+	replacement.SourcePath = item.SourcePath
+	replacement.RetryableExternalDatabase = replacement.Status != string(batch.StatusSuccess)
+	if replacement.Status == string(batch.StatusSuccess) {
+		delete(session.kggItems, index)
+	} else {
+		session.kggItems[index] = true
+	}
+	a.mu.Lock()
+	if a.latestID != batchID || a.latest == nil {
+		a.mu.Unlock()
+		return &ApplicationError{Code: "STALE_BATCH", Detail: "the batch is no longer available for retry"}
+	}
+	a.latest = replaceSnapshot(a.latest, replacement)
+	a.retry = &session
+	snapshot := *a.latest
+	snapshot.Results = append([]QueueItem(nil), a.latest.Results...)
+	a.mu.Unlock()
+	a.sink.Emit(EventFinished, struct {
+		BatchID uint64    `json:"batchId"`
+		Item    QueueItem `json:"item"`
+	}{batchID, replacement})
+	a.sink.Emit(EventComplete, BatchCompleteEvent{BatchID: batchID, Snapshot: snapshot})
+	return nil
 }
 
 // RetryQMCWithExternalKey opens the native picker and retries exactly one
@@ -366,7 +458,7 @@ func (a *Application) RetryQMCWithExternalKey(batchID uint64, index int) error {
 		a.mu.Unlock()
 		return &ApplicationError{Code: "STALE_BATCH", Detail: "the batch is no longer available for retry"}
 	}
-	if !a.retry.items[index] {
+	if !a.retry.qmcItems[index] {
 		a.mu.Unlock()
 		return &ApplicationError{Code: "RETRY_NOT_ELIGIBLE", Detail: "this item is not eligible for external-key retry"}
 	}
@@ -419,11 +511,11 @@ func (a *Application) RetryQMCWithExternalKey(batchID uint64, index int) error {
 	replacement.RetryableExternalKey = true
 	if replacement.Status == string(batch.StatusSuccess) {
 		replacement.RetryableExternalKey = false
-		delete(session.items, index)
+		delete(session.qmcItems, index)
 	} else {
 		replacement.ErrorCode = "QMC_EXTERNAL_KEY_ATTEMPT_FAILED"
 		replacement.ErrorDetail = "the supplied external QMC key could not unlock this file"
-		session.items[index] = true
+		session.qmcItems[index] = true
 	}
 	a.mu.Lock()
 	if a.latestID != batchID || a.latest == nil {

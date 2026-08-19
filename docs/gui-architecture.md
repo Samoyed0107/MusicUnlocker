@@ -185,4 +185,21 @@ not `QMC_EXTERNAL_KEY_REQUIRED`. On success, the result replaces the original
 queue index, summary counts are recomputed, and the existing preview path is
 usable through the normal `GetPreviewURL` authorization. The native dialog
 title is currently a stable backend string rather than frontend-localized;
-this avoids coupling native dialog code to React localization.
+ this avoids coupling native dialog code to React localization.
+
+## Stage 6D KGG database retry
+
+`RetryKGGWithDatabase(batchID, itemIndex)` is the only GUI database retry
+operation. The backend validates the retained completed-batch session, item
+index, stored source path, and KGG-specific retry eligibility before opening a
+native Windows file dialog. It reuses
+`externalmaterial.ValidateKGGDatabasePath` and constructs a request-scoped
+`KGGDatabaseProvider`; the database path is never a JavaScript argument and is
+not included in DTOs, results, preferences, or logs.
+
+The selected database is used only for the exact logical row. The captured
+output root, naming configuration, source path, and stable queue index are
+preserved. Cancellation or pre-decode validation failure does not mutate the
+row. A compatible database with no matching entry remains a cautious,
+independently retryable failure. QMC EKey and KGG database capabilities remain
+separate typed backend paths.

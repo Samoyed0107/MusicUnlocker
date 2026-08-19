@@ -28,6 +28,10 @@ func (d runtimeDialogs) SelectQMCExternalKeyFile() (string, error) {
 	return runtime.OpenFileDialog(d.ctx, runtime.OpenDialogOptions{Title: "Select QMC EKey file", Filters: []runtime.FileFilter{{DisplayName: "Text files", Pattern: "*.txt;*.key;*.ekey"}, {DisplayName: "All files", Pattern: "*.*"}}})
 }
 
+func (d runtimeDialogs) SelectKGGDatabaseFile() (string, error) {
+	return runtime.OpenFileDialog(d.ctx, runtime.OpenDialogOptions{Title: "Select Kugou database", Filters: []runtime.FileFilter{{DisplayName: "SQLite/database files", Pattern: "*.db;*.sqlite;*.sqlite3;*.dat"}, {DisplayName: "All files", Pattern: "*.*"}}})
+}
+
 func (d runtimeDialogs) SelectFiles() ([]string, error) {
 	return runtime.OpenMultipleFilesDialog(d.ctx, runtime.OpenDialogOptions{Title: "Select music files"})
 }
@@ -87,6 +91,9 @@ func (w *App) StartBatch(req app.BatchStartRequest) (app.BatchStartResponse, err
 func (w *App) CancelBatch() error { return w.facade.CancelBatch() }
 func (w *App) RetryQMCWithExternalKey(batchID uint64, index int) error {
 	return w.facade.RetryQMCWithExternalKey(batchID, index)
+}
+func (w *App) RetryKGGWithDatabase(batchID uint64, index int) error {
+	return w.facade.RetryKGGWithDatabase(batchID, index)
 }
 func (w *App) GetPreviewURL(batchID uint64, index int) (app.PreviewResponse, error) {
 	return w.facade.GetPreviewURL(batchID, index)

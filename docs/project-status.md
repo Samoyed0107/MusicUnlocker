@@ -15,6 +15,7 @@
 | 6A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
 | 6B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_QMC_EKEY_GUI_RETEST_PENDING` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
 | 6C | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
+| 6D | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_KGG_DATABASE_GUI_RETEST_PENDING` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -51,4 +52,10 @@ into an in-memory SQLite database, and queries `ShareFileItems` by the KGM
 header's `AudioHash`. Database lookup is narrowly serialized around upstream
 initialization because the upstream process cache is not concurrency-safe;
 audio reads remain outside that lock. No database path or contents are
-persisted, and the GUI database-selection workflow remains deferred.
+persisted. Stage 6D adds `RetryKGGWithDatabase(batchID, itemIndex)`: the
+backend opens the native file dialog, reuses the same validation, and keeps the
+selected path out of React, DTO results, preferences, and logs. Only the
+eligible logical row is retried with its original output/naming snapshot;
+result replacement recomputes the summary. Cancellation and validation failure
+leave the original row unchanged. Real KGG/KGM V5 database-backed GUI decode
+remains `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.

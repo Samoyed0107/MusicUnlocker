@@ -92,6 +92,17 @@ observations; no confirmed product bug remains.
   `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
 - No real KGG database or KGM V5 file was accessed.
 
+## Stage 6D KGG database GUI retry status
+
+- KGG database GUI retry: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
+- Native database selection, backend-only path lifetime, per-item result
+  replacement, summary recomputation, localization, and preview continuity
+  are covered by automated tests and smoke checks.
+- Real KGM V5/KGG database-backed GUI decode:
+  `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
+- No real KGG database, KGM V5 file, or installed Kugou application data was
+  accessed during Stage 6D.
+
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone
