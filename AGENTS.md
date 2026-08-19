@@ -59,3 +59,6 @@
 - External decoder databases are explicit runtime inputs only. Database access
   must be read-only with no automatic user-data scanning or sidecar mutation;
   KGM V3 must not depend on KGG database support.
+- Self-contained decoder material takes precedence over optional external
+  providers; supplied-material failures remain distinct from missing-material
+  blocked states.

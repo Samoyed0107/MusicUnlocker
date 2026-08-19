@@ -201,6 +201,8 @@ func (d *kggDialogs) SelectKGGDatabaseFile() (string, error) {
 	return path, nil
 }
 
+func (d *kggDialogs) SelectQMCExternalKeyFile() (string, error) { return "", nil }
+
 type kggRetryEngine struct {
 	mu       sync.Mutex
 	calls    int
@@ -449,17 +451,27 @@ func TestKGGRetryUsesExactDatabaseAndReplacesSummary(t *testing.T) {
 }
 
 func TestKGGRetryRejectsWrongMaterialRows(t *testing.T) {
-	e := &retryEngine{}
-	sink := &fakeSink{}
-	d := &kggDialogs{}
-	a := New(e, sink, d)
-	id, err := a.StartBatch(validRequest())
+	qmcEngine := &retryEngine{}
+	qmcSink := &fakeSink{}
+	qmcApp := New(qmcEngine, qmcSink, &kggDialogs{})
+	qmcID, err := qmcApp.StartBatch(validRequest())
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitComplete(sink, 1)
-	if err := a.RetryKGGWithDatabase(id.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
-		t.Fatalf("wrong material err=%v", err)
+	waitComplete(qmcSink, 1)
+	if err := qmcApp.RetryKGGWithDatabase(qmcID.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
+		t.Fatalf("QMC row accepted by KGG retry: %v", err)
+	}
+	kggEngine := &kggRetryEngine{items: []batch.Result{{Index: 0, SourcePath: `C:\song.kgm`, Status: batch.StatusBlockedExternalDatabase, ErrorCode: "KGG_DATABASE_REQUIRED"}}}
+	kggSink := &fakeSink{}
+	kggApp := New(kggEngine, kggSink, &kggDialogs{})
+	kggID, err := kggApp.StartBatch(validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitComplete(kggSink, 1)
+	if err := kggApp.RetryQMCWithExternalKey(kggID.BatchID, 0); err == nil || !strings.Contains(err.Error(), "RETRY_NOT_ELIGIBLE") {
+		t.Fatalf("KGG row accepted by QMC retry: %v", err)
 	}
 }
 

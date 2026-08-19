@@ -103,6 +103,17 @@ observations; no confirmed product bug remains.
 - No real KGG database, KGM V5 file, or installed Kugou application data was
   accessed during Stage 6D.
 
+## Stage 6 external-material validation backlog
+
+These items are validation backlog only and do not block Stage 6 engineering
+closure:
+
+- QMC STag supplied EKey: a compatible real file was probed, but a real EKey
+  is unavailable; supplied-key decode remains `PENDING_EXTERNAL_MATERIAL`.
+- KGM V5/KGG database-backed decode: Core and GUI are implemented and
+  automated-tested, but a compatible real file/database is unavailable;
+  database-backed decode remains `PENDING_EXTERNAL_MATERIAL`.
+
 The debug production EXE was still running when `wails dev` was started during
 the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone

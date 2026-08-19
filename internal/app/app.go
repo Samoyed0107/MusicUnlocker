@@ -151,6 +151,7 @@ type Application struct {
 	latest      *BatchSnapshot
 	retry       *retrySession
 	retrying    bool
+	retryCancel context.CancelFunc
 	launchInbox LaunchInbox
 }
 
@@ -394,7 +395,12 @@ func (a *Application) RetryKGGWithDatabase(batchID uint64, index int) error {
 	session := *a.retry
 	a.retrying = true
 	a.mu.Unlock()
-	defer func() { a.mu.Lock(); a.retrying = false; a.mu.Unlock() }()
+	defer func() { a.mu.Lock(); a.retrying = false; a.retryCancel = nil; a.mu.Unlock() }()
+	retryCtx, retryCancel := context.WithCancel(context.Background())
+	defer retryCancel()
+	a.mu.Lock()
+	a.retryCancel = retryCancel
+	a.mu.Unlock()
 
 	dbPath, err := dialog.SelectKGGDatabaseFile()
 	if err != nil {
@@ -407,7 +413,8 @@ func (a *Application) RetryKGGWithDatabase(batchID uint64, index int) error {
 		return &ApplicationError{Code: "KGG_DATABASE_INVALID", Detail: "the selected KGG database is invalid"}
 	}
 	provider := externalmaterial.StaticKGGDatabaseProvider{Database: externalmaterial.KGGDatabase{Path: dbPath}}
-	summary, runErr := a.engine.Run(context.Background(), batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, KGGDatabaseProvider: provider})
+	summary, runErr := a.engine.Run(retryCtx, batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, KGGDatabaseProvider: provider})
+	retryCancel()
 	if runErr != nil {
 		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the KGG database retry could not be completed"}
 	}
@@ -476,7 +483,12 @@ func (a *Application) RetryQMCWithExternalKey(batchID uint64, index int) error {
 	session := *a.retry
 	a.retrying = true
 	a.mu.Unlock()
-	defer func() { a.mu.Lock(); a.retrying = false; a.mu.Unlock() }()
+	defer func() { a.mu.Lock(); a.retrying = false; a.retryCancel = nil; a.mu.Unlock() }()
+	retryCtx, retryCancel := context.WithCancel(context.Background())
+	defer retryCancel()
+	a.mu.Lock()
+	a.retryCancel = retryCancel
+	a.mu.Unlock()
 
 	keyPath, err := dialog.SelectQMCExternalKeyFile()
 	if err != nil {
@@ -497,8 +509,8 @@ func (a *Application) RetryQMCWithExternalKey(batchID uint64, index int) error {
 		}
 	}()
 
-	ctx := context.Background()
-	summary, runErr := a.engine.Run(ctx, batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, ExternalMaterialProvider: provider})
+	summary, runErr := a.engine.Run(retryCtx, batch.Request{Inputs: []string{item.SourcePath}, OutputRoot: session.outputRoot, MaxWorkers: 1, Naming: session.naming, ExternalMaterialProvider: provider})
+	retryCancel()
 	if runErr != nil {
 		return &ApplicationError{Code: "RETRY_FAILED", Detail: "the external-key retry could not be completed"}
 	}
@@ -574,6 +586,12 @@ func (a *Application) GetPreviewURL(batchID uint64, index int) (PreviewResponse,
 }
 
 func (a *Application) Shutdown(ctx context.Context) error {
+	a.mu.Lock()
+	retryCancel := a.retryCancel
+	a.mu.Unlock()
+	if retryCancel != nil {
+		retryCancel()
+	}
 	if a.preview == nil {
 		return nil
 	}

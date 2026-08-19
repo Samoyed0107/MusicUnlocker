@@ -48,16 +48,16 @@ Offline NCM container Title/Artist/Album metadata now fills missing decoded
 metadata for the existing naming engine. Stage 5G is `COMPLETE / REAL_PASS`;
 evidence is recorded in `docs/real-validation.md`.
 
-## Stage 6A
+## Completed: Stage 6A
 
 Core accepts request-scoped, per-source external QMC EKeys through an
 application-owned provider. `musicdecode --qmc-ekey-file` reads the pinned
 upstream Base64 representation with a bounded, offline, in-memory lifetime.
 Batch Core carries a per-file provider, but `musicbatch` deliberately has no
-one-key-for-all-files interface. GUI key entry is deferred to Stage 6B; KGG/KGM
-V5 database support is not implemented.
+one-key-for-all-files interface. GUI key entry is implemented in Stage 6B;
+KGG/KGM V5 database support is implemented in Stages 6C–6D.
 
-## Stage 6B
+## Completed: Stage 6B
 
 Blocked QMC rows can open a native Windows EKey file chooser and retry only
 that item through the normal batch/decode pipeline. The original output and
@@ -68,18 +68,18 @@ are recalculated. Keys and key paths are never persisted or sent to React.
 Real supplied-key QMC GUI validation remains pending; Stage 6C core is
 complete and its real database-backed validation remains pending.
 
-## Stage 6C
+## Completed: Stage 6C
 
 KGM V5/KGG now accepts an explicit, per-source application-owned database
 provider. The adapter uses the pinned upstream path-based helper and retains
 KGM V3's self-contained path. Database paths are validated as bounded regular
 files without opening SQLite in the source directory; upstream imports data
-into memory. `musicdecode` and `musicbatch` accept `--kgg-database` for future
-offline validation. Missing databases remain blocked, while a supplied
+into memory. `musicdecode` and `musicbatch` accept `--kgg-database` for offline
+operation. Missing databases remain blocked, while a supplied
 database with no matching `AudioHash` is reported separately. Real KGM V5/KGG
 decode remains pending.
 
-## Stage 6D
+## Completed: Stage 6D
 
 `RetryKGGWithDatabase(batchID, itemIndex)` is a backend-only native database
 chooser and per-item retry. It reuses Stage 6C bounded read-only validation and
@@ -89,3 +89,10 @@ reach React or preferences. A selected row is replaced at the same queue
 index, summaries are recomputed, normal naming/finalization and preview are
 used, and cancellation or invalid databases leave the row retryable. Real
 database-backed KGM V5/KGG GUI validation remains pending.
+
+## Stage 6 closure
+
+Stage 6A–6D engineering is complete and automated-tested. Remaining real
+QMC supplied-key and KGM V5/KGG database-backed validation is tracked in
+`docs/real-validation.md` as external-material backlog, not as active
+development work. The next product stage may proceed without those materials.

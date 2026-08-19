@@ -12,10 +12,11 @@
 | 5F | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes, live switching, interpolation parity fix, runtime failure containment, and validated production startup. |
 | 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
 | 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
-| 6A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
-| 6B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_QMC_EKEY_GUI_RETEST_PENDING` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
-| 6C | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_RETEST_PENDING` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
-| 6D | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `REAL_KGG_DATABASE_GUI_RETEST_PENDING` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
+| 6A | `COMPLETE` / `AUTOMATED_TESTED` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
+| 6B | `COMPLETE` / `AUTOMATED_TESTED` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
+| 6C | `COMPLETE` / `AUTOMATED_TESTED` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
+| 6D | `COMPLETE` / `AUTOMATED_TESTED` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
+| 6E | `ENGINEERING_COMPLETE` | External-material architecture audit, hardening, security boundary review, and validation backlog closure. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -36,9 +37,10 @@ Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.
 Stage 5G is `COMPLETE / REAL_PASS`; the validated naming outputs and audio hash
 are recorded in `docs/real-validation.md`.
 
-Stage 6A remains offline. Real QMC STag supplied-key decoding is
-`REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`. KGG/KGM V5 and the GUI
-key-entry workflow remain deferred to later stages.
+Stage 6 remains offline and engineering-complete. Real QMC STag supplied-key
+decoding is `PENDING_EXTERNAL_MATERIAL`; KGG/KGM V5 database-backed decoding is
+also `PENDING_EXTERNAL_MATERIAL`. These are explicit validation backlog items,
+not active engineering stages.
 
 Stage 6B adds a non-persistent native EKey file selection flow. Only the
 selected blocked item is retried; its stable queue index is replaced in the
@@ -59,3 +61,6 @@ eligible logical row is retried with its original output/naming snapshot;
 result replacement recomputes the summary. Cancellation and validation failure
 leave the original row unchanged. Real KGG/KGM V5 database-backed GUI decode
 remains `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
+
+Stage 6 overall is `ENGINEERING_COMPLETE`. Missing real external material does
+not block the next product stage.
