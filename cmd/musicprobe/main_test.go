@@ -10,6 +10,13 @@ import (
 	"testing"
 )
 
+func TestVersionFlag(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--version"}, &out, &errOut); code != 0 || !strings.Contains(out.String(), "MusicUnlocker musicprobe 0.7.0") || errOut.Len() != 0 {
+		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+}
+
 func syntheticKGM() []byte {
 	b := make([]byte, 0x3c)
 	copy(b, []byte{0x7c, 0xd5, 0x32, 0xeb, 0x86, 0x02, 0x7f, 0x4b, 0xa8, 0xaf, 0xa6, 0x8e, 0x0f, 0xff, 0x99, 0x14})

@@ -7,7 +7,7 @@ export type QueueItem = {
   family?: string; variant?: string; decodedFormat?: string; sourceBytes: number; sourceBytesKnown: boolean
   bytesWritten: number; status: string; errorCode?: string; errorDetail?: string; namingFallback?: boolean; namingFallbackReason?: string; retryableExternalKey?: boolean; retryableExternalDatabase?: boolean
 }
-export type AppInfo = { name: string; version: string; maxWorkers: number; supportsDrop: boolean; supportsPause: boolean }
+export type AppInfo = { name: string; version: string; buildTimestamp: string; buildIdentifier: string; maxWorkers: number; supportsDrop: boolean; supportsPause: boolean }
 export type BatchSnapshot = { successes: number; skippedNotEncrypted: number; skippedExisting: number; blockedExternalKey: number; blockedExternalDatabase: number; unsupported: number; unknown: number; failed: number; cancelled: number; bytesWritten: number; results: QueueItem[] }
 export type BatchCompleteEvent = { batchId: number; cancelled: boolean; snapshot: BatchSnapshot; errorCode?: string; errorDetail?: string }
 export type PreviewResponse = { available: boolean; url?: string; format?: string }

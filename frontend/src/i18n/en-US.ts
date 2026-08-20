@@ -1,5 +1,5 @@
 export const enUS = {
-  'app.eyebrow': 'LOCAL DESKTOP UTILITY', 'app.subtitle': 'Unlock supported music files while keeping sources untouched.',
+  'app.eyebrow': 'LOCAL DESKTOP UTILITY', 'app.subtitle': 'Unlock supported music files while keeping sources untouched.', 'about.title': 'About', 'about.version': 'Version', 'about.build': 'Build', 'about.built': 'Built',
   'language.label': 'Language', 'language.system': 'Follow system / 系统', 'language.zhCN': '简体中文', 'language.enUS': 'English',
   'inputs.addFiles': 'Add files', 'inputs.addFolder': 'Add folder', 'inputs.queue': 'Input queue', 'inputs.clear': 'Clear all', 'inputs.empty': 'No inputs selected yet. Folders stay as one row until the batch starts.', 'inputs.drop': 'Drop music files or folders here', 'inputs.dropHint': 'or use the buttons below', 'inputs.remove': 'Remove {{name}}', 'inputs.locked': 'Wait for the current batch to finish before adding more inputs.',
   'output.folder': 'Output folder', 'output.choose': 'Choose an output folder', 'output.browse': 'Browse', 'output.reset': 'Reset suggestion', 'output.resetDone': 'Output folder reset to the current suggestion.', 'output.open': 'Open output folder', 'output.chooseBeforeStart': 'Choose an output folder to enable Start unlocking.',

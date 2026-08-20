@@ -9,6 +9,13 @@ import (
 	"testing"
 )
 
+func TestVersionFlag(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--version"}, &out, &errOut); code != 0 || !strings.Contains(out.String(), "MusicUnlocker musicbatch 0.7.0") || errOut.Len() != 0 {
+		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+}
+
 func TestRunJSONAndHumanModes(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "normal.mp3"), []byte("ID3"), 0600); err != nil {

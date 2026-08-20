@@ -3,7 +3,7 @@
   "name": "MusicUnlocker",
   "outputfilename": "MusicUnlocker",
   "frontend:install": "npm install",
-  "frontend:build": "npm run build",
+  "frontend:build": "npm run build && go run ../cmd/buildmetadata",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": { "name": "MusicUnlocker" }

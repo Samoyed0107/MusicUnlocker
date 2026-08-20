@@ -8,6 +8,19 @@
 - Stage 5D: Windows launch arguments and Wails single-instance handoff are
   implemented; physical drag-to-EXE validation is still pending.
 
+## Stage 7A: Release identity and build foundation
+
+Stage 7A provides one centralized application version and link-time build
+identity for the Wails GUI and `musicprobe`, `musicdecode`, and `musicbatch`.
+The GUI exposes localized About information, and Wails production builds carry
+the application product/version metadata in the Windows executable resource.
+The build identity fields are timestamp and commit/build identifier; local
+development defaults are explicit and release builds can inject them with Go
+`-ldflags -X`.
+
+Stage 7A does not include an installer, file associations, updater,
+history/library, network metadata, or decoder changes.
+
 ## Completed: Stage 5E1
 
 Add offline metadata-based decoded-output naming. Planned presets include

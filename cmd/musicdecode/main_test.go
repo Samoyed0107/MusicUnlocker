@@ -11,6 +11,13 @@ import (
 	"musicunlocker/internal/decode"
 )
 
+func TestVersionFlag(t *testing.T) {
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--version"}, &out, &errOut); code != 0 || !strings.Contains(out.String(), "MusicUnlocker musicdecode 0.7.0") || errOut.Len() != 0 {
+		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
+	}
+}
+
 func TestTypedErrorCodeRenderedOnce(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "blocked.qmc0")

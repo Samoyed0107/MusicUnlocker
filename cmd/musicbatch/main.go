@@ -12,6 +12,7 @@ import (
 	"musicunlocker/internal/batch"
 	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
+	"musicunlocker/internal/version"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -25,8 +26,13 @@ func run(args []string, out, errOut io.Writer) int {
 	nameMode := flags.String("name-mode", "source", "source, title, artist-title, title-artist, track-title, artist-album-track-title")
 	nameTemplate := flags.String("name-template", "", "custom output-name template")
 	kggDatabase := flags.String("kgg-database", "", "path to a local Kugou KGG database for compatible files")
+	versionMode := flags.Bool("version", false, "print version information")
 	if err := flags.Parse(args); err != nil {
 		return 2
+	}
+	if *versionMode {
+		fmt.Fprintln(out, version.CLI("musicbatch"))
+		return 0
 	}
 	if *outDir == "" || flags.NArg() == 0 || *jobs <= 0 {
 		fmt.Fprintln(errOut, "usage: musicbatch --out-dir <dir> [--jobs N] [--json] <file-or-directory> [more...]")

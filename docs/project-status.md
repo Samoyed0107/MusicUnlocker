@@ -17,6 +17,7 @@
 | 6C | `COMPLETE` / `AUTOMATED_TESTED` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
 | 6D | `COMPLETE` / `AUTOMATED_TESTED` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
 | 6E | `ENGINEERING_COMPLETE` | External-material architecture audit, hardening, security boundary review, and validation backlog closure. |
+| 7A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Release identity, CLI version reporting, localized GUI About information, and Windows executable metadata foundation. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -64,3 +65,9 @@ remains `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
 
 Stage 6 overall is `ENGINEERING_COMPLETE`. Missing real external material does
 not block the next product stage.
+
+Stage 7A is limited to release identity and build foundation. The centralized
+Go identity is used by the Wails facade and all CLI tools; release builds may
+inject timestamp and commit identifier values with `-ldflags -X`. Installer,
+file-association, updater, history/library, network metadata, and decoder work
+remain outside this stage.

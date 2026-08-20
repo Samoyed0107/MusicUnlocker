@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"musicunlocker/internal/probe"
+	"musicunlocker/internal/version"
 )
 
 type fileReport struct {
@@ -51,8 +52,13 @@ func run(args []string, out, errOut io.Writer) int {
 	flags := flag.NewFlagSet("musicprobe", flag.ContinueOnError)
 	flags.SetOutput(errOut)
 	jsonMode := flags.Bool("json", false, "emit one JSON report containing all files")
+	versionMode := flags.Bool("version", false, "print version information")
 	if err := flags.Parse(args); err != nil {
 		return 2
+	}
+	if *versionMode {
+		fmt.Fprintln(out, version.CLI("musicprobe"))
+		return 0
 	}
 	paths := flags.Args()
 	if len(paths) == 0 {

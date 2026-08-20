@@ -13,6 +13,7 @@ import (
 	"musicunlocker/internal/batch"
 	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
+	"musicunlocker/internal/version"
 )
 
 const (
@@ -56,11 +57,13 @@ type BatchStartResponse struct {
 }
 
 type AppInfo struct {
-	Name          string `json:"name"`
-	Version       string `json:"version"`
-	MaxWorkers    int    `json:"maxWorkers"`
-	SupportsDrop  bool   `json:"supportsDrop"`
-	SupportsPause bool   `json:"supportsPause"`
+	Name            string `json:"name"`
+	Version         string `json:"version"`
+	BuildTimestamp  string `json:"buildTimestamp"`
+	BuildIdentifier string `json:"buildIdentifier"`
+	MaxWorkers      int    `json:"maxWorkers"`
+	SupportsDrop    bool   `json:"supportsDrop"`
+	SupportsPause   bool   `json:"supportsPause"`
 }
 
 type QueueItem struct {
@@ -205,7 +208,8 @@ func NewWithPreview(engine EngineRunner, sink EventSink, dialogs Dialogs, prefer
 }
 
 func (a *Application) GetAppInfo() AppInfo {
-	return AppInfo{Name: "MusicUnlocker", Version: "Stage 5B", MaxWorkers: 8, SupportsPause: false, SupportsDrop: true}
+	identity := version.Current()
+	return AppInfo{Name: identity.Name, Version: identity.Version, BuildTimestamp: identity.BuildTimestamp, BuildIdentifier: identity.BuildIdentifier, MaxWorkers: 8, SupportsPause: false, SupportsDrop: true}
 }
 
 func (a *Application) SelectFiles() ([]string, error) {

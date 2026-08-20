@@ -10,6 +10,7 @@ import (
 	"musicunlocker/internal/decode"
 	"musicunlocker/internal/externalmaterial"
 	"musicunlocker/internal/naming"
+	"musicunlocker/internal/version"
 )
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
@@ -22,8 +23,13 @@ func run(args []string, out, errOut io.Writer) int {
 	nameTemplate := flags.String("name-template", "", "custom output-name template")
 	ekeyFile := flags.String("qmc-ekey-file", "", "file containing a canonical Base64 QMC external EKey")
 	kggDatabase := flags.String("kgg-database", "", "path to a local Kugou KGG database")
+	versionMode := flags.Bool("version", false, "print version information")
 	if err := flags.Parse(args); err != nil {
 		return 2
+	}
+	if *versionMode {
+		fmt.Fprintln(out, version.CLI("musicdecode"))
+		return 0
 	}
 	if *outDir == "" || flags.NArg() != 1 {
 		fmt.Fprintln(errOut, "usage: musicdecode --out-dir <dir> <file>")

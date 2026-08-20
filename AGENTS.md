@@ -62,3 +62,6 @@
 - Self-contained decoder material takes precedence over optional external
   providers; supplied-material failures remain distinct from missing-material
   blocked states.
+- Release identity is centralized in `internal/version`; GUI, CLI, and build
+  metadata must use that identity. Stage 7A does not include installer,
+  associations, updater, history/library, network metadata, or decoder work.

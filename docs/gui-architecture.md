@@ -21,6 +21,10 @@ The facade exposes `GetAppInfo`, `SelectFiles`, `SelectFolder`,
 `CancelBatch`, and `GetPendingLaunchPaths`. `BatchStartRequest`, `QueueItem`, `ProgressEvent`,
 `BatchSnapshot`, and `BatchCompleteEvent` are the stable JSON-shaped contract.
 
+`GetAppInfo` also returns the centralized application version, build timestamp,
+and build identifier. The localized About section renders these identity
+fields only; it does not expose decoder internals.
+
 Each start receives a monotonically increasing `batchId`. Every transient
 event carries that ID, allowing the frontend to ignore events from an older
 generation. The facade rejects a second active start with
