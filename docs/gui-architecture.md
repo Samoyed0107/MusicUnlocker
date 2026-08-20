@@ -139,6 +139,30 @@ selector. Physical Explorer drag-to-EXE still requires manual verification in
 a real Windows installation; automated tests do not perform WebView E2E or
 decode real music.
 
+## Stage 7B-A desktop workflow layout
+
+Stage 7B-A changes presentation hierarchy only. `App.tsx` continues to own
+batch ID filtering, running/cancelling state, retry state, preview selection,
+preferences, and Wails event subscriptions. Presentation-only components split
+the interface into a compact application header, responsive setup workspace,
+batch command surface, and unified results workspace.
+
+The setup workspace places file/folder selection and the selected-input queue
+first, then output destination and backend-validated naming configuration;
+the worker selector is in a native HTML `details` advanced section. At the
+900px native minimum width the setup stacks vertically; at wider widths it uses
+two columns. The command surface owns the existing ready/running/complete
+label and Start action. Cancel is rendered only while a batch is running or
+cancelling; this is presentation-only and does not change cancellation logic.
+
+The results workspace keeps existing stable-index ordering, local filters,
+row status calculation, retries, and single preview element. It now groups the
+results title, filters, rows, final summary, one Open Output Folder action, and
+preview within one card. The localized About identity fields are no longer a
+permanent workspace card; a dialog is deliberately deferred to a later 7B
+phase. No explicit theme support, native material, animation, or backend
+contract change is included in this phase.
+
 ## Stage 5E2 file naming
 
 The facade exposes `NamingConfigDTO` and `ValidateNamingConfig`. The latter

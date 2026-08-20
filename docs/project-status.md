@@ -18,6 +18,7 @@
 | 6D | `COMPLETE` / `AUTOMATED_TESTED` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
 | 6E | `ENGINEERING_COMPLETE` | External-material architecture audit, hardening, security boundary review, and validation backlog closure. |
 | 7A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Release identity, CLI version reporting, localized GUI About information, and Windows executable metadata foundation. |
+| 7B-A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Desktop workflow layout: responsive setup workspace, batch command surface, and unified results/summary/preview area. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -71,3 +72,10 @@ Go identity is used by the Wails facade and all CLI tools; release builds may
 inject timestamp and commit identifier values with `-ldflags -X`. Installer,
 file-association, updater, history/library, network metadata, and decoder work
 remain outside this stage.
+
+Stage 7B-A reorganizes only the React presentation layer. The 900px minimum
+window stacks the setup vertically; wider windows use input and destination
+columns. App lifecycle, batch events, retry eligibility, preview capability
+URLs, naming validation, DTOs, and backend behavior are unchanged. About build
+identity is removed from the permanent workspace pending a later dialog; no
+new theme system, animation, or native-window treatment is included.

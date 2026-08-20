@@ -21,6 +21,18 @@ development defaults are explicit and release builds can inject them with Go
 Stage 7A does not include an installer, file associations, updater,
 history/library, network metadata, or decoder changes.
 
+## Completed: Stage 7B-A
+
+Reorganize the desktop UI around the existing batch workflow: choose music,
+configure destination and naming, start unlocking, then inspect results and
+use preview/retry actions. The React layout uses responsive input/destination
+setup cards, a dedicated batch command surface, and one results workspace for
+filters, rows, summary, output-folder action, and preview. The native title
+bar, Wails behavior, DTOs, batch lifecycle, preview security, retry providers,
+filesystem handling, and naming semantics remain unchanged. This phase does
+not add the planned About dialog, explicit theme support, a full design system,
+or motion polish.
+
 ## Completed: Stage 5E1
 
 Add offline metadata-based decoded-output naming. Planned presets include

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { backend, AppInfo, BatchCompleteEvent, BatchEvent, dedupePaths, LaunchPathsEvent, NamingConfig, NamingValidation, normalizePath, Preferences, QueueItem, SelectedInput, sortItems } from './api'
-import { DropZone } from './components/DropZone'
-import { InputQueue } from './components/InputQueue'
-import { ProcessingTable } from './components/ProcessingTable'
-import { AudioPreview } from './components/AudioPreview'
-import { Summary } from './components/Summary'
+import { AppHeader } from './components/AppHeader'
+import { BatchCommandBar } from './components/BatchCommandBar'
+import { ResultsWorkspace } from './components/ResultsWorkspace'
+import { SetupWorkspace } from './components/SetupWorkspace'
 import { useFileDrop } from './hooks/useFileDrop'
 import { useLaunchPaths } from './hooks/useLaunchPaths'
-import { FileNaming } from './components/FileNaming'
 import './style.css'
 import { normalizeLanguage, useTranslation } from './i18n'
 
@@ -15,7 +13,7 @@ const eventNames=['musicunlocker:batch:discovered','musicunlocker:batch:started'
 
 export default function App() {
   const {t, preference, setPreference}=useTranslation()
-  const api=backend(); const [appInfo,setAppInfo]=useState<Pick<AppInfo,'name'|'version'|'buildTimestamp'|'buildIdentifier'>>({name:'MusicUnlocker',version:'unknown',buildTimestamp:'unknown',buildIdentifier:'unknown'}); const [inputs,setInputs]=useState<SelectedInput[]>([]); const [output,setOutput]=useState(''); const [explicitOutput,setExplicitOutput]=useState(false)
+  const api=backend(); const [appInfo,setAppInfo]=useState<Pick<AppInfo,'name'>>({name:'MusicUnlocker'}); const [inputs,setInputs]=useState<SelectedInput[]>([]); const [output,setOutput]=useState(''); const [explicitOutput,setExplicitOutput]=useState(false)
   const [workers,setWorkers]=useState(1); const [autoSuggest,setAutoSuggest]=useState(true); const [naming,setNaming]=useState<NamingConfig>({mode:'KEEP_SOURCE'}); const [namingValidation,setNamingValidation]=useState<NamingValidation>({valid:true,example:'source-file.mp3'}); const [prefsLoaded,setPrefsLoaded]=useState(false); const [items,setItems]=useState<QueueItem[]>([])
   const [running,setRunning]=useState(false); const [cancelling,setCancelling]=useState(false); const [retryingIndex,setRetryingIndex]=useState<number>(); const [complete,setComplete]=useState<BatchCompleteEvent|null>(null); const [selectedPreview,setSelectedPreview]=useState<QueueItem>(); const [notice,setNotice]=useState(''); const [filter,setFilter]=useState('all'); const activeId=useRef<number|null>(null)
   const locked=running||cancelling
@@ -41,10 +39,11 @@ export default function App() {
   const removeInput=(path:string)=>{setInputs(prev=>prev.filter(x=>x.path!==path));setItems([]);setComplete(null)}; const clearInputs=()=>{setInputs([]);setItems([]);setComplete(null)}
   const ordered=useMemo(()=>sortItems(items),[items]); const statusText=running?(cancelling?t('batch.cancelling'):t('batch.running')):complete?t('batch.complete'):t('batch.ready')
   const previewError=useCallback((message: string)=>setNotice(message.includes('PREVIEW_FILE_MISSING')?t('errors.previewMissing'):message.includes('PREVIEW_SERVER_UNAVAILABLE')?t('errors.previewUnavailable'):message),[t])
-  return <main><header><div><p className="eyebrow">{t('app.eyebrow')}</p><h1>{appInfo.name}</h1><p className="muted">{t('app.subtitle')}</p></div><div className="header-tools"><label>{t('language.label')}<select value={preference} onChange={e=>setPreference(normalizeLanguage(e.target.value))}><option value="SYSTEM">{t('language.system')}</option><option value="zh-CN">{t('language.zhCN')}</option><option value="en-US">{t('language.enUS')}</option></select></label></div></header>
-    <section className="card controls"><DropZone disabled={locked} onDrop={addPaths}><div className="actions"><button onClick={addFiles} disabled={locked}>{t('inputs.addFiles')}</button><button onClick={addFolder} disabled={locked}>{t('inputs.addFolder')}</button></div></DropZone><InputQueue items={inputs} disabled={locked} onRemove={removeInput} onClear={clearInputs}/><div className="form-grid"><label>{t('output.folder')}<div className="inline"><input value={output} readOnly placeholder={t('output.choose')}/><button onClick={browseOutput} disabled={locked}>{t('output.browse')}</button>{output&&<button className="text-button" onClick={resetSuggestion} disabled={locked||!explicitOutput}>{t('output.reset')}</button>}</div></label><label>{t('jobs.label')}<select value={workers} onChange={e=>setWorkers(Number(e.target.value))} disabled={locked}>{[1,2,4,8].map(n=><option key={n}>{n}</option>)}</select></label></div><FileNaming config={naming} validation={namingValidation} disabled={locked} onChange={setNaming}/><div className="footer-actions"><span className="pill batch-status">{statusText}</span><button className="primary" onClick={start} disabled={locked||!inputs.length||!output||!namingValidation.valid}>{t('batch.start')}</button><button className="danger" onClick={cancel} disabled={!running||cancelling}>{cancelling?t('batch.cancelling'):t('batch.cancel')}</button></div>{!inputs.length&&<p className="helper">{t('batch.addHint')}</p>}{inputs.length&&!output&&<p className="helper">{t('output.chooseBeforeStart')}</p>}{notice&&<div className="notice" role="status">{notice}</div>}</section>
-    <section className="card"><div className="section-title"><h2>{t('progress.title')}</h2><div className="filters">{[['all','progress.all'],['completed','progress.completed'],['skipped','progress.skipped'],['blocked','progress.blocked'],['problems','progress.problems']].map(([value,key])=> <button key={value} className={filter===value?'selected':''} onClick={()=>setFilter(value)}>{t(key as any)}</button>)}</div></div><div className="table-head"><span>{t('progress.nameFormat')}</span><span>{t('progress.status')}</span><span>{t('progress.progress')}</span><span>{t('progress.outputDetail')}</span></div><ProcessingTable items={ordered} filter={filter} onPlay={setSelectedPreview} onRetry={retry} retryingIndex={retryingIndex}/><AudioPreview item={selectedPreview} batchId={complete?.batchId} api={api} onClose={()=>setSelectedPreview(undefined)} onError={previewError}/></section>
-    <section className="card summary"><div className="section-title"><h2>{t('summary.title')}</h2>{complete&&<button className="text-button" onClick={openOutput}>{t('output.open')}</button>}</div><Summary summary={complete?.snapshot} onOpen={openOutput}/></section>
-    <section className="card about"><div className="section-title"><h2>{t('about.title')}</h2></div><p>{appInfo.name}</p><p className="muted">{t('about.version')}: {appInfo.version}</p><p className="muted">{t('about.build')}: {appInfo.buildIdentifier}</p><p className="muted">{t('about.built')}: {appInfo.buildTimestamp}</p></section>
+
+  return <main>
+    <AppHeader appName={appInfo.name} preference={preference} onPreferenceChange={setPreference}/>
+    <SetupWorkspace disabled={locked} inputs={inputs} output={output} explicitOutput={explicitOutput} workers={workers} naming={naming} namingValidation={namingValidation} onAddPaths={addPaths} onAddFiles={addFiles} onAddFolder={addFolder} onRemoveInput={removeInput} onClearInputs={clearInputs} onBrowseOutput={browseOutput} onResetSuggestion={resetSuggestion} onWorkersChange={setWorkers} onNamingChange={setNaming}/>
+    <BatchCommandBar statusText={statusText} running={running} cancelling={cancelling} startDisabled={locked||!inputs.length||!output||!namingValidation.valid} onStart={start} onCancel={cancel} notice={notice} showAddHint={!inputs.length} showOutputHint={!!inputs.length&&!output}/>
+    <ResultsWorkspace items={ordered} filter={filter} onFilterChange={setFilter} onPlay={setSelectedPreview} onRetry={retry} retryingIndex={retryingIndex} selectedPreview={selectedPreview} complete={complete} api={api} onClosePreview={()=>setSelectedPreview(undefined)} onPreviewError={previewError} onOpenOutput={openOutput}/>
   </main>
 }
