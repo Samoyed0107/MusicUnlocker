@@ -80,6 +80,16 @@ func (w *App) DescribeInputs(inputs []string) []app.SelectedInput {
 }
 func (w *App) GetPreferences() (app.Preferences, error) { return w.facade.GetPreferences() }
 func (w *App) SavePreferences(p app.Preferences) error  { return w.facade.SavePreferences(p) }
+func (w *App) SetWindowTheme(theme string) {
+	switch theme {
+	case app.ThemeDark:
+		runtime.WindowSetDarkTheme(w.ctx)
+	case app.ThemeLight:
+		runtime.WindowSetLightTheme(w.ctx)
+	default:
+		runtime.WindowSetSystemDefaultTheme(w.ctx)
+	}
+}
 func (w *App) ValidateNamingConfig(c app.NamingConfigDTO) app.NamingValidation {
 	return app.ValidateNamingConfig(c)
 }

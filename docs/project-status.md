@@ -20,6 +20,7 @@
 | 7A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Release identity, CLI version reporting, localized GUI About information, and Windows executable metadata foundation. |
 | 7B-A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Desktop workflow layout: responsive setup workspace, batch command surface, and unified results/summary/preview area. |
 | 7B-B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Fluent visual tokens, shared status presentation, component normalization, and frontend accessibility improvements. |
+| 7C | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `WINDOWS_MANUAL_VALIDATION_PENDING` | Explicit persisted theme modes, native title-bar theme coordination, SVG status icons, motion/accessibility refinement, localized About dialog, and documented Mica fallback. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -88,3 +89,26 @@ targets, selected filter semantics, byte-progress accessibility values, and
 accessible full-path labels while preserving all batch, retry, preview, DTO,
 and file-drop behavior. Explicit theme switching, Mica, and motion remain
 outside this phase.
+
+Stage 7C promotes the prepared palette into an explicit persisted theme system
+with stable `SYSTEM`, `LIGHT`, and `DARK` values. React updates the root semantic
+tokens and asks Wails to update the native title-bar theme; system mode continues
+to follow Windows changes. Legacy lowercase preferences remain readable. Theme
+and language changes are presentation-only and do not recreate or mutate batch,
+preview, retry, queue, naming, or output state.
+
+The permanent About card remains absent. A localized modal dialog obtains the
+application name, version, build timestamp, and build identifier from
+`GetAppInfo`, whose identity comes from `internal/version`, and adds supported
+format and offline-processing information. Status presentation now uses a
+shared inline SVG icon abstraction rather than font-dependent symbols. Motion
+is limited to short presentation transitions and is disabled through
+`prefers-reduced-motion`.
+
+The pinned Wails version can switch native title-bar themes and exposes DWM
+Mica as a Windows option without Windows App SDK. Mica is intentionally not
+enabled: it is limited to Windows 11 build 22621 or later and requires changing
+the window/WebView transparency composition. The opaque semantic surfaces are
+the portable fallback. Native title-bar synchronization, real system-theme
+change handling, and unsupported-Windows fallback remain manual validation
+items; no installer or additional runtime dependency was added.

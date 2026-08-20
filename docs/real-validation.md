@@ -119,3 +119,22 @@ the failed investigation. Because Stage 5D uses a fixed Wails
 `SingleInstanceLock` ID, that run does not establish that `wails dev` alone
 white-screened. A valid dev reproduction requires closing all MusicUnlocker
 instances first, then running `wails dev` alone.
+
+## Stage 7C Windows-native experience
+
+- Theme preference migration/persistence and default: `AUTOMATED_TESTED`.
+- Frontend build, localization, preview, retry, and theme/About smoke checks:
+  `AUTOMATED_TESTED`.
+- Browser-rendered dark theme and localized modal About interaction with
+  a mocked Wails facade: `VISUAL_SMOKE_PASS`.
+- Native Wails title-bar synchronization in `SYSTEM`, `LIGHT`, and `DARK`:
+  `REAL_MANUAL_VALIDATION_PENDING`.
+- Live Windows system-theme change while `SYSTEM` is selected:
+  `REAL_MANUAL_VALIDATION_PENDING`.
+- Windows 10/older-Windows opaque fallback: `REAL_MANUAL_VALIDATION_PENDING`.
+
+No native Mica backdrop was enabled. The Wails v2.15 API supports it only on
+Windows 11 build 22621 or later and requires changing transparent/translucent
+window composition. The documented opaque fallback preserves portable EXE
+behavior without Windows App SDK. No real audio was used and no existing real
+decoder validation status changes in Stage 7C.

@@ -18,13 +18,19 @@ type Preferences struct {
 	Language             string `json:"language,omitempty"`
 }
 
+const (
+	ThemeSystem = "SYSTEM"
+	ThemeLight  = "LIGHT"
+	ThemeDark   = "DARK"
+)
+
 type PreferencesStore interface {
 	Load() (Preferences, error)
 	Save(Preferences) error
 }
 
 func DefaultPreferences() Preferences {
-	return Preferences{MaxWorkers: 1, Theme: "system", AutoSuggestOutput: true, NamingMode: string(naming.KeepSource), Language: "SYSTEM"}
+	return Preferences{MaxWorkers: 1, Theme: ThemeSystem, AutoSuggestOutput: true, NamingMode: string(naming.KeepSource), Language: "SYSTEM"}
 }
 
 func DefaultPreferencesStore() PreferencesStore { return newFilePreferencesStore() }
@@ -37,8 +43,13 @@ func sanitizePreferences(p Preferences) Preferences {
 	if p.MaxWorkers >= 1 && p.MaxWorkers <= 8 {
 		d.MaxWorkers = p.MaxWorkers
 	}
-	if p.Theme == "system" || p.Theme == "light" || p.Theme == "dark" {
-		d.Theme = p.Theme
+	switch p.Theme {
+	case ThemeSystem, "system":
+		d.Theme = ThemeSystem
+	case ThemeLight, "light":
+		d.Theme = ThemeLight
+	case ThemeDark, "dark":
+		d.Theme = ThemeDark
 	}
 	d.AutoSuggestOutput = p.AutoSuggestOutput
 	config := naming.Config{Mode: naming.Mode(p.NamingMode), CustomTemplate: p.CustomNamingTemplate}

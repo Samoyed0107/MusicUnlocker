@@ -45,6 +45,28 @@ bars expose byte values, and visually truncated paths retain accessible full
 values. Explicit theme selection, native materials, animation, and backend
 changes remain future work.
 
+## Implemented: Stage 7C
+
+Add Windows-native theme coordination and focused Fluent refinement without
+changing the established desktop workflow. The persisted theme preference uses
+stable `SYSTEM`, `LIGHT`, and `DARK` values, defaults to `SYSTEM`, updates the
+React semantic CSS tokens, and synchronizes the Wails native title-bar theme.
+Legacy lowercase theme values are migrated on load.
+
+Status glyph text is replaced by a shared inline SVG icon abstraction. Controls
+retain visible keyboard focus, the localized About information is available in
+a modal dialog rather than a permanent card, and subtle transitions respect
+the system reduced-motion preference. The dialog reads application name and
+version through the existing centralized release identity facade and describes
+supported formats and offline operation.
+
+Wails v2.15 exposes native title-bar themes and an optional DWM backdrop without
+requiring Windows App SDK. Native title-bar theme switching is enabled. Mica is
+not enabled because Wails requires Windows 11 build 22621 or later plus a
+translucent/transparent window composition path; the current opaque surfaces
+provide a predictable fallback and preserve the portable executable. Installer,
+updater, networking, cloud, Web, Android, and decoder scope remain excluded.
+
 ## Completed: Stage 5E1
 
 Add offline metadata-based decoded-output naming. Planned presets include

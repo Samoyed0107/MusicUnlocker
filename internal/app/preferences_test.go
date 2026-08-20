@@ -16,14 +16,14 @@ func TestPreferencesDefaultsAndRoundTrip(t *testing.T) {
 	if got != DefaultPreferences() {
 		t.Fatalf("defaults=%+v", got)
 	}
-	if err := store.Save(Preferences{MaxWorkers: 4, Theme: "dark", AutoSuggestOutput: false}); err != nil {
+	if err := store.Save(Preferences{MaxWorkers: 4, Theme: ThemeDark, AutoSuggestOutput: false}); err != nil {
 		t.Fatal(err)
 	}
 	got, err = store.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.MaxWorkers != 4 || got.Theme != "dark" || got.AutoSuggestOutput {
+	if got.MaxWorkers != 4 || got.Theme != ThemeDark || got.AutoSuggestOutput {
 		t.Fatalf("round trip=%+v", got)
 	}
 }
@@ -41,7 +41,7 @@ func TestPreferencesMalformedAndInvalidValuesFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = (&filePreferencesStore{path: path}).Load()
-	if err != nil || got.MaxWorkers != 1 || got.Theme != "system" || got.AutoSuggestOutput {
+	if err != nil || got.MaxWorkers != 1 || got.Theme != ThemeSystem || got.AutoSuggestOutput {
 		t.Fatalf("sanitized=%+v err=%v", got, err)
 	}
 }
@@ -53,10 +53,10 @@ func TestPreferencesNamingDefaultsAndInvalidRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := store.Load()
-	if err != nil || got.NamingMode != "KEEP_SOURCE" || got.MaxWorkers != 4 || got.Theme != "dark" || got.AutoSuggestOutput {
+	if err != nil || got.NamingMode != "KEEP_SOURCE" || got.MaxWorkers != 4 || got.Theme != ThemeDark || got.AutoSuggestOutput {
 		t.Fatalf("recovery=%+v err=%v", got, err)
 	}
-	if err := store.Save(Preferences{MaxWorkers: 2, Theme: "light", AutoSuggestOutput: true, NamingMode: "CUSTOM", CustomNamingTemplate: "{artist} - {title}"}); err != nil {
+	if err := store.Save(Preferences{MaxWorkers: 2, Theme: ThemeLight, AutoSuggestOutput: true, NamingMode: "CUSTOM", CustomNamingTemplate: "{artist} - {title}"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err = store.Load()
@@ -72,11 +72,11 @@ func TestPreferencesLanguageCompatibilityAndRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := store.Load()
-	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 4 || got.Theme != "dark" || got.AutoSuggestOutput {
+	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 4 || got.Theme != ThemeDark || got.AutoSuggestOutput {
 		t.Fatalf("old config=%+v err=%v", got, err)
 	}
 	for _, language := range []string{"SYSTEM", "zh-CN", "en-US"} {
-		if err := store.Save(Preferences{MaxWorkers: 2, Theme: "light", AutoSuggestOutput: true, NamingMode: "TITLE", Language: language}); err != nil {
+		if err := store.Save(Preferences{MaxWorkers: 2, Theme: ThemeLight, AutoSuggestOutput: true, NamingMode: "TITLE", Language: language}); err != nil {
 			t.Fatal(err)
 		}
 		got, err = store.Load()
@@ -84,11 +84,32 @@ func TestPreferencesLanguageCompatibilityAndRecovery(t *testing.T) {
 			t.Fatalf("language=%q got=%+v err=%v", language, got, err)
 		}
 	}
-	if err := store.Save(Preferences{MaxWorkers: 3, Theme: "dark", AutoSuggestOutput: false, NamingMode: "TITLE", Language: "xx"}); err != nil {
+	if err := store.Save(Preferences{MaxWorkers: 3, Theme: ThemeDark, AutoSuggestOutput: false, NamingMode: "TITLE", Language: "xx"}); err != nil {
 		t.Fatal(err)
 	}
 	got, err = store.Load()
-	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 3 || got.Theme != "dark" || got.AutoSuggestOutput {
+	if err != nil || got.Language != "SYSTEM" || got.MaxWorkers != 3 || got.Theme != ThemeDark || got.AutoSuggestOutput {
 		t.Fatalf("invalid language=%+v err=%v", got, err)
+	}
+}
+
+func TestPreferencesThemeCompatibilityAndRecovery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "preferences.json")
+	store := &filePreferencesStore{path: path}
+	for legacy, want := range map[string]string{"system": ThemeSystem, "light": ThemeLight, "dark": ThemeDark} {
+		if err := os.WriteFile(path, []byte(`{"maxWorkers":1,"theme":"`+legacy+`","autoSuggestOutput":true}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := store.Load()
+		if err != nil || got.Theme != want {
+			t.Fatalf("legacy theme=%q got=%+v err=%v", legacy, got, err)
+		}
+	}
+	if err := store.Save(Preferences{MaxWorkers: 1, Theme: "NEON", AutoSuggestOutput: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load()
+	if err != nil || got.Theme != ThemeSystem {
+		t.Fatalf("invalid theme=%+v err=%v", got, err)
 	}
 }

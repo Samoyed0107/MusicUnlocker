@@ -1,8 +1,9 @@
 import type { TranslationResource } from './index'
 export const zhCN: TranslationResource = {
-  'app.eyebrow': '本地桌面工具', 'app.subtitle': '解锁支持的音乐文件，同时保留源文件不变。', 'about.title': '关于', 'about.version': '版本', 'about.build': '构建标识', 'about.built': '构建时间',
+  'app.eyebrow': '本地桌面工具', 'app.subtitle': '解锁支持的音乐文件，同时保留源文件不变。', 'about.title': '关于', 'about.version': '版本', 'about.build': '构建标识', 'about.built': '构建时间', 'about.close': '关闭“关于”', 'about.supportedFormats': '支持的格式', 'about.formatsValue': 'KGM/VPR、NCM、KWM、QMC、TM、虾米和喜马拉雅', 'about.processing': '处理方式', 'about.offline': '音频解码和元数据处理均离线进行，不使用网络元数据。',
   'workflow.setup': '解锁设置', 'workflow.chooseMusic': '选择音乐', 'workflow.destination': '配置输出位置', 'workflow.advanced': '高级选项', 'workflow.actions': '批处理操作', 'workflow.start': '开始解锁', 'workflow.results': '查看结果',
   'language.label': '语言', 'language.system': '跟随系统 / Follow system', 'language.zhCN': '简体中文', 'language.enUS': 'English',
+  'theme.label': '主题', 'theme.system': '跟随系统', 'theme.light': '浅色', 'theme.dark': '深色',
   'inputs.addFiles': '添加文件', 'inputs.addFolder': '添加文件夹', 'inputs.queue': '输入队列', 'inputs.clear': '全部清除', 'inputs.empty': '尚未选择输入。批处理开始前，文件夹会保持为一行。', 'inputs.drop': '将音乐文件或文件夹拖到这里', 'inputs.dropHint': '或使用下面的按钮', 'inputs.remove': '移除 {{name}}', 'inputs.locked': '请等待当前批处理完成后再添加输入。',
   'output.folder': '输出文件夹', 'output.choose': '选择输出文件夹', 'output.browse': '浏览', 'output.reset': '恢复建议', 'output.resetDone': '输出文件夹已恢复为当前建议。', 'output.open': '打开输出文件夹', 'output.chooseBeforeStart': '选择输出文件夹后才能开始解锁。',
   'jobs.label': '并发任务数', 'batch.start': '开始解锁', 'batch.cancel': '取消', 'batch.cancelling': '正在取消…', 'batch.ready': '就绪', 'batch.running': '处理中', 'batch.complete': '已完成', 'batch.chooseInputs': '开始前请至少选择一个输入和一个输出文件夹。', 'batch.fixNaming': '开始前请修正文件命名配置。', 'batch.addHint': '添加文件或文件夹，或拖放到上方。', 'batch.itemsAdded': '已从 Windows 添加 {{count}} 个项目。', 'batch.itemsReceived': '已收到来自 Windows 的 {{count}} 个项目，将在当前批处理完成后添加。',

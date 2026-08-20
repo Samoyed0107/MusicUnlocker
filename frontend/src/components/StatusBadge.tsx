@@ -1,4 +1,5 @@
 import { useTranslation } from '../i18n'
+import { Icon, type IconName } from './Icon'
 
 const statusKeys: Record<string, Parameters<ReturnType<typeof useTranslation>['t']>[0]> = {
   SUCCESS: 'status.completed', SKIPPED_NOT_ENCRYPTED: 'status.notEncrypted', SKIPPED_OUTPUT_EXISTS: 'status.outputExists',
@@ -6,21 +7,21 @@ const statusKeys: Record<string, Parameters<ReturnType<typeof useTranslation>['t
   UNKNOWN: 'status.unknown', FAILED: 'status.failed', CANCELLED: 'status.cancelled',
 }
 
-const presentation: Record<string, { tone: string; symbol: string }> = {
-  SUCCESS: { tone: 'completed', symbol: '✓' },
-  BLOCKED_EXTERNAL_KEY: { tone: 'blocked', symbol: '!' }, BLOCKED_EXTERNAL_DATABASE: { tone: 'blocked', symbol: '!' },
-  FAILED: { tone: 'failed', symbol: '×' }, CANCELLED: { tone: 'neutral', symbol: '–' },
-  SKIPPED_NOT_ENCRYPTED: { tone: 'skipped', symbol: '–' }, SKIPPED_OUTPUT_EXISTS: { tone: 'skipped', symbol: '–' },
-  UNSUPPORTED: { tone: 'skipped', symbol: '?' }, UNKNOWN: { tone: 'skipped', symbol: '?' },
+const presentation: Record<string, { tone: string; icon: IconName }> = {
+  SUCCESS: { tone: 'completed', icon: 'check' },
+  BLOCKED_EXTERNAL_KEY: { tone: 'blocked', icon: 'warning' }, BLOCKED_EXTERNAL_DATABASE: { tone: 'blocked', icon: 'warning' },
+  FAILED: { tone: 'failed', icon: 'error' }, CANCELLED: { tone: 'neutral', icon: 'skip' },
+  SKIPPED_NOT_ENCRYPTED: { tone: 'skipped', icon: 'skip' }, SKIPPED_OUTPUT_EXISTS: { tone: 'skipped', icon: 'skip' },
+  UNSUPPORTED: { tone: 'skipped', icon: 'unknown' }, UNKNOWN: { tone: 'skipped', icon: 'unknown' },
 }
 
 export function StatusBadge({ status, code }: { status: string; code?: string }) {
   const { t } = useTranslation()
-  const state = presentation[status] ?? { tone: 'running', symbol: '•' }
+  const state = presentation[status] ?? { tone: 'running', icon: 'pending' as IconName }
   const label = t(statusKeys[status] || 'status.waiting')
 
   return <span className={`status-badge status--${state.tone}`} title={code} aria-label={label}>
-    <span className="status-symbol" aria-hidden="true">{state.symbol}</span>
+    <span className="status-symbol"><Icon name={state.icon} /></span>
     <span>{label}</span>
   </span>
 }

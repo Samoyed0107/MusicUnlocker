@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "test:i18n": "node --experimental-strip-types scripts/i18n-smoke.mjs",
     "test:preview": "node scripts/preview-smoke.mjs",
+    "test:retry": "node scripts/retry-smoke.mjs",
+    "test:theme-about": "node scripts/theme-about-smoke.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

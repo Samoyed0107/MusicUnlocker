@@ -39,8 +39,10 @@
   color-scheme: light;
 }
 
+:root[data-theme="LIGHT"] { color-scheme: light; }
+
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 0; background: var(--color-canvas); }
+body { margin: 0; min-width: 0; background: var(--color-canvas); transition: background-color 160ms ease, color 160ms ease; }
 main { max-width: 1200px; margin: 0 auto; padding: var(--space-8) 44px 48px; }
 h1, h2, p { margin: 0; }
 h1 { font-size: var(--font-app-title); line-height: 36px; font-weight: 600; letter-spacing: -.4px; }
@@ -52,7 +54,8 @@ h2 { font-size: var(--font-card-title); line-height: 24px; font-weight: 600; }
 .eyebrow { margin-bottom: var(--space-1); }
 .section-step { color: var(--color-accent); }
 .muted { color: var(--color-text-secondary); font-size: var(--font-body); line-height: 20px; }
-.header-tools { flex: none; width: 176px; }
+.header-tools { display: grid; flex: none; width: 176px; gap: var(--space-2); }
+.about-button { justify-self: end; }
 
 .card, .batch-command-surface {
   background: var(--color-surface);
@@ -60,6 +63,7 @@ h2 { font-size: var(--font-card-title); line-height: 24px; font-weight: 600; }
   border-radius: var(--radius-card);
   padding: var(--space-5);
   box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 .card { margin-bottom: var(--space-4); }
 .setup-workspace { display: grid; gap: var(--space-4); margin-bottom: var(--space-4); }
@@ -80,9 +84,10 @@ button {
   font-weight: 600;
   line-height: 20px;
   cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
 }
 button:hover:not(:disabled) { border-color: var(--color-accent); background: var(--color-accent-soft); }
-button:active:not(:disabled) { background: var(--color-surface-subtle); }
+button:active:not(:disabled) { background: var(--color-surface-subtle); transform: translateY(1px); }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 button:disabled { opacity: .5; cursor: default; }
 .primary { border-color: var(--color-accent); background: var(--color-accent); color: #fff; }
@@ -146,7 +151,8 @@ input, select { width: 100%; min-width: 0; min-height: 36px; border: 1px solid v
 .table-row:hover { background: var(--color-surface-subtle); }
 .file-cell strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; border-radius: var(--radius-pill); padding: 2px 8px; font-size: var(--font-caption); font-weight: 600; white-space: nowrap; }
-.status-symbol { display: inline-grid; width: 14px; place-items: center; font-size: 13px; }
+.status-symbol { display: inline-grid; width: 16px; place-items: center; }
+.icon { display: block; flex: none; }
 .status--completed { background: var(--color-success-soft); color: var(--color-success); }
 .status--running { background: var(--color-accent-soft); color: var(--color-accent); }
 .status--blocked { background: var(--color-warning-soft); color: var(--color-warning); }
@@ -168,6 +174,17 @@ input, select { width: 100%; min-width: 0; min-height: 36px; border: 1px solid v
 .summary-grid strong { font-size: 20px; line-height: 24px; }
 .summary-grid span { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-caption); }
 
+.about-dialog { width: min(520px, calc(100vw - 48px)); border: 1px solid var(--color-border); border-radius: 12px; padding: var(--space-5); background: var(--color-surface); color: var(--color-text); box-shadow: 0 24px 64px rgba(0, 0, 0, .24); animation: dialog-enter 140ms ease-out; }
+.about-dialog::backdrop { background: rgba(0, 0, 0, .38); backdrop-filter: blur(2px); }
+.dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+.dialog-heading h2 { margin-top: var(--space-1); font-size: var(--font-section-title); line-height: 28px; }
+.icon-button { display: inline-grid; min-width: 32px; padding: 0; place-items: center; }
+.about-details { display: grid; margin: 0; gap: var(--space-3); }
+.about-details div { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: var(--space-3); border-top: 1px solid var(--color-divider); padding-top: var(--space-3); }
+.about-details dt { color: var(--color-text-secondary); font-size: var(--font-caption); font-weight: 600; }
+.about-details dd { margin: 0; color: var(--color-text); font-size: var(--font-body); line-height: 20px; overflow-wrap: anywhere; }
+@keyframes dialog-enter { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+
 @media (min-width: 820px) {
   .setup-workspace { grid-template-columns: minmax(0, 1.35fr) minmax(320px, .9fr); }
 }
@@ -180,7 +197,7 @@ input, select { width: 100%; min-width: 0; min-height: 36px; border: 1px solid v
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]), :root[data-theme="SYSTEM"] {
     --color-canvas: #202020;
     --color-surface: #2b2b2b;
     --color-surface-subtle: #252525;
@@ -203,4 +220,31 @@ input, select { width: 100%; min-width: 0; min-height: 36px; border: 1px solid v
   }
 
   .notice { border-color: var(--color-warning); }
+}
+
+:root[data-theme="DARK"] {
+  --color-canvas: #202020;
+  --color-surface: #2b2b2b;
+  --color-surface-subtle: #252525;
+  --color-control: #323232;
+  --color-text: #ffffff;
+  --color-text-secondary: #c7c7c7;
+  --color-border: #454545;
+  --color-divider: rgba(255, 255, 255, .12);
+  --color-accent: #60cdff;
+  --color-accent-hover: #8dddff;
+  --color-accent-soft: #163b53;
+  --color-danger: #ff99a4;
+  --color-danger-soft: #4b2028;
+  --color-warning: #fce100;
+  --color-warning-soft: #4c4400;
+  --color-success: #6ccb5f;
+  --color-success-soft: #1c3b1f;
+  --color-focus: #60cdff;
+  color-scheme: dark;
+}
+:root[data-theme="DARK"] .notice { border-color: var(--color-warning); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }

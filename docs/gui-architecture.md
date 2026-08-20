@@ -87,8 +87,9 @@ override.
 
 Preferences contain only `MaxWorkers`, `Theme`, `AutoSuggestOutput`,
 `NamingMode`, `CustomNamingTemplate`, and stable `Language` (`SYSTEM`,
-`zh-CN`, or `en-US`) and
-are stored as JSON at the per-user `os.UserConfigDir()/MusicUnlocker/preferences.json`.
+`zh-CN`, or `en-US`). Theme uses stable `SYSTEM`, `LIGHT`, or `DARK` values.
+Preferences are stored as JSON at the per-user
+`os.UserConfigDir()/MusicUnlocker/preferences.json`.
 The file is bounded, unknown fields are ignored, invalid values use defaults,
 malformed files do not crash the app, and writes use a same-directory
 temporary file followed by rename (with a Windows replacement fallback).
@@ -110,11 +111,12 @@ that exists as a directory or file, resolves a file to its parent, and passes
 the validated path as a separate argument to `explorer.exe`; the frontend
 cannot run shell commands.
 
-The UI follows the system `prefers-color-scheme`, with a light default and a
-dark neutral surface treatment. It uses Segoe UI/system fonts, semantic
+The UI defaults to the persisted `SYSTEM` theme and follows
+`prefers-color-scheme`, with explicit `LIGHT` and `DARK` overrides. It uses
+Segoe UI/system fonts, semantic
 buttons, visible keyboard focus, text status labels, disabled states, and a
-bounded processing-list scroll region. No explicit theme selector is exposed
-in this stage. The frontend uses a small `LocalizationProvider` and typed
+bounded processing-list scroll region. The frontend uses a small
+`LocalizationProvider` and typed
 translation hook; locale changes are presentation-only and do not alter batch,
 preview, queue, naming, or output state.
 
@@ -134,8 +136,8 @@ preview, queue, naming, or output state.
 
 There is no pause/resume, overwrite mode, source deletion, online external-key
 acquisition, KGG database loading, metadata/network access, FFmpeg integration,
-tray support, installer packaging, file association, or explicit theme
-selector. Physical Explorer drag-to-EXE still requires manual verification in
+tray support, installer packaging, file association, or Mica backdrop.
+Physical Explorer drag-to-EXE still requires manual verification in
 a real Windows installation; automated tests do not perform WebView E2E or
 decode real music.
 
@@ -181,6 +183,38 @@ and standard button targets are at least 32px with visible focus styling.
 Input and output paths remain visually truncated while their full values stay
 available to assistive technology. Batch events, stable ordering, retry
 eligibility, preview URL lifecycle, and Wails file-drop behavior are unchanged.
+
+## Stage 7C Windows-native experience
+
+`App.tsx` owns the theme preference alongside the existing language and naming
+preferences. Loading normalizes legacy lowercase values to `SYSTEM`, `LIGHT`,
+or `DARK`; applying a theme updates `document.documentElement.dataset.theme`,
+the browser `color-scheme`, and the native Wails title-bar theme. Saving remains
+part of the existing bounded preference object and is deferred while a batch is
+locked, exactly like other presentation preferences. Theme changes do not alter
+component identity or the batch, preview, retry, file-drop, or launch-path
+lifecycle.
+
+Light and dark semantic token sets remain in `style.css`. `SYSTEM` selects the
+appropriate set through `prefers-color-scheme`; explicit modes override it.
+Short color, border, control, and modal transitions provide presentation polish,
+while `prefers-reduced-motion: reduce` collapses them. `Icon` supplies
+maintainable, current-color inline SVG paths, and `StatusBadge` retains visible
+localized text so the icon is supplemental rather than the sole status cue.
+
+`AboutDialog` is a modal, localized surface opened from the compact header. It
+uses the existing `GetAppInfo` DTO, backed by `internal/version`, for application
+name and release identity. Supported-format and offline-operation copy stays in
+the existing localization resources. Escape, the labeled close button, and
+backdrop dismissal close the dialog; it is not persisted as workspace content.
+
+The pinned Wails v2.15 Windows backend supports runtime title-bar theme changes
+and offers `BackdropType=Mica` without Windows App SDK. Backdrop support requires
+Windows 11 build 22621 or later and a translucent/transparent WebView/window
+configuration. Stage 7C does not enable it because that composition change is
+riskier than the presentation goal and would not improve older-Windows behavior.
+Opaque semantic surfaces remain the fallback, the executable remains portable,
+and no new native dependency is introduced.
 
 ## Stage 5E2 file naming
 
