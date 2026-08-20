@@ -1,5 +1,6 @@
 import { useTranslation } from '../i18n'
 import { classifyStatus, QueueItem } from '../api'
+import { StatusBadge } from './StatusBadge'
 
 const errorKeys: Record<string, any> = {
   QMC_EXTERNAL_KEY_REQUIRED: 'errors.qmcKey',
@@ -10,12 +11,6 @@ const errorKeys: Record<string, any> = {
   OUTPUT_EXISTS: 'errors.outputExists', DECODED_AUDIO_FORMAT_UNKNOWN: 'errors.unknownAudio',
   PREVIEW_FILE_MISSING: 'errors.previewMissing', PREVIEW_SERVER_UNAVAILABLE: 'errors.previewUnavailable',
 }
-const statusKeys: Record<string, any> = {
-  SUCCESS:'status.completed', SKIPPED_NOT_ENCRYPTED:'status.notEncrypted', SKIPPED_OUTPUT_EXISTS:'status.outputExists',
-  BLOCKED_EXTERNAL_KEY:'status.keyRequired', BLOCKED_EXTERNAL_DATABASE:'status.databaseRequired', UNSUPPORTED:'status.unsupported',
-  UNKNOWN:'status.unknown', FAILED:'status.failed', CANCELLED:'status.cancelled',
-}
-
 export function ProcessingTable({items, filter, onPlay, onRetry, retryingIndex}: {
   items: QueueItem[]; filter: string; onPlay: (item: QueueItem) => void
   onRetry: (item: QueueItem) => void; retryingIndex?: number
@@ -28,9 +23,9 @@ export function ProcessingTable({items, filter, onPlay, onRetry, retryingIndex}:
     const retrying=retryingIndex===item.index
     return <div className="table-row" key={item.index}>
       <div className="file-cell"><strong title={item.sourcePath}>{item.sourceDisplayName}</strong><small>{item.family||t('progress.unclassified')}{item.variant?` · ${item.variant}`:''}</small></div>
-      <div><span className={`status-badge status-${item.status.toLowerCase()}`} title={item.errorCode}>{t(statusKeys[item.status]||'status.waiting')}</span></div>
-      <div className="progress-cell"><span>{formatBytes(item.bytesWritten)} {t('progress.written')}</span>{item.status==='SUCCESS'&&<div className="progress-bar complete"><i/></div>}{item.status!=='SUCCESS'&&item.sourceBytesKnown&&item.sourceBytes>0&&<div className="progress-bar"><i style={{width:`${Math.min(100,item.bytesWritten/item.sourceBytes*100)}%`}}/></div>}</div>
-      <div className="detail-cell">{item.errorCode&&<details><summary>{t('progress.details')}</summary><p>{errorKeys[item.errorCode]?t(errorKeys[item.errorCode]):item.errorDetail}</p></details>}{item.outputPath&&item.status==='SUCCESS'&&<><small title={item.outputPath}>{item.outputPath}</small><button className="play-button" onClick={()=>onPlay(item)} aria-label={t('progress.play')}>{t('progress.play')}</button></>}{qmcRetryable&&<button className="retry-button" onClick={()=>onRetry(item)} disabled={retryingIndex!==undefined} aria-label={retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.another'):t('retry.provide')}>{retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.another'):t('retry.provide')}</button>}{kggRetryable&&<button className="retry-button" onClick={()=>onRetry(item)} disabled={retryingIndex!==undefined} aria-label={retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.anotherDatabase'):t('retry.database')}>{retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.anotherDatabase'):t('retry.database')}</button>}</div>
+      <div><StatusBadge status={item.status} code={item.errorCode}/></div>
+      <div className="progress-cell"><span>{formatBytes(item.bytesWritten)} {t('progress.written')}</span>{item.status==='SUCCESS'&&<div className="progress-bar complete" role="img" aria-label={t('status.completed')}><i/></div>}{item.status!=='SUCCESS'&&item.sourceBytesKnown&&item.sourceBytes>0&&<div className="progress-bar" role="progressbar" aria-label={t('progress.progress')} aria-valuemin={0} aria-valuemax={item.sourceBytes} aria-valuenow={Math.min(item.bytesWritten,item.sourceBytes)} aria-valuetext={`${formatBytes(item.bytesWritten)} ${t('progress.written')}`}><i style={{width:`${Math.min(100,item.bytesWritten/item.sourceBytes*100)}%`}}/></div>}</div>
+      <div className="detail-cell">{item.errorCode&&<details><summary>{t('progress.details')}</summary><p>{errorKeys[item.errorCode]?t(errorKeys[item.errorCode]):item.errorDetail}</p></details>}{item.outputPath&&item.status==='SUCCESS'&&<><small title={item.outputPath}>{item.outputPath}</small><button className="play-button" onClick={()=>onPlay(item)} aria-label={t('progress.play')}>{t('progress.play')}</button></>}{qmcRetryable&&<button className="retry-button context-button" onClick={()=>onRetry(item)} disabled={retryingIndex!==undefined} aria-label={retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.another'):t('retry.provide')}>{retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.another'):t('retry.provide')}</button>}{kggRetryable&&<button className="retry-button context-button" onClick={()=>onRetry(item)} disabled={retryingIndex!==undefined} aria-label={retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.anotherDatabase'):t('retry.database')}>{retrying?t('retry.retrying'):item.status==='FAILED'?t('retry.anotherDatabase'):t('retry.database')}</button>}</div>
     </div>
   })}</div>
 }

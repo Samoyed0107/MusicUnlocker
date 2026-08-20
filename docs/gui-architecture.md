@@ -163,6 +163,25 @@ permanent workspace card; a dialog is deliberately deferred to a later 7B
 phase. No explicit theme support, native material, animation, or backend
 contract change is included in this phase.
 
+## Stage 7B-B visual system and accessibility
+
+Stage 7B-B retains the Stage 7B-A component boundaries and changes only
+frontend presentation. `style.css` defines semantic tokens for light-mode
+surfaces, controls, text, borders, spacing, radius, typography, accent, and
+status colors; the system dark-scheme media query supplies matching token
+values for a later theme-selection phase. It does not add a preference control
+or change the existing theme persistence behavior.
+
+`StatusBadge` is the shared item-status presentation mapping used by result
+rows. It leaves core status strings untouched and renders a localized label,
+symbol, and semantic tone for completed, blocked, failed, skipped, neutral,
+and waiting/running states. Result filters now expose `aria-pressed`, source
+byte progress includes accessible values without claiming decoded percentage,
+and standard button targets are at least 32px with visible focus styling.
+Input and output paths remain visually truncated while their full values stay
+available to assistive technology. Batch events, stable ordering, retry
+eligibility, preview URL lifecycle, and Wails file-drop behavior are unchanged.
+
 ## Stage 5E2 file naming
 
 The facade exposes `NamingConfigDTO` and `ValidateNamingConfig`. The latter

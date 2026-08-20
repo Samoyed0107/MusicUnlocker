@@ -33,6 +33,18 @@ filesystem handling, and naming semantics remain unchanged. This phase does
 not add the planned About dialog, explicit theme support, a full design system,
 or motion polish.
 
+## Completed: Stage 7B-B
+
+Add a Fluent-inspired frontend visual system without changing desktop behavior.
+Semantic CSS tokens cover canvas, surfaces, controls, text, borders, accents,
+and success/warning/danger states with dark-mode counterparts prepared through
+the system color-scheme media query. Shared status badges present a localized
+label plus a non-color symbol and semantic tone. Controls use consistent
+hierarchy and 32px targets; filter buttons expose their selected state, progress
+bars expose byte values, and visually truncated paths retain accessible full
+values. Explicit theme selection, native materials, animation, and backend
+changes remain future work.
+
 ## Completed: Stage 5E1
 
 Add offline metadata-based decoded-output naming. Planned presets include

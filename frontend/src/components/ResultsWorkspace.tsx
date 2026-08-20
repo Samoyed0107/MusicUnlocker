@@ -32,7 +32,7 @@ export function ResultsWorkspace({
         <h2 id="results-heading">{t('workflow.results')}</h2>
       </div>
       <div className="filters">
-        {filters.map(([value, key]) => <button key={value} className={filter === value ? 'selected' : ''} onClick={() => onFilterChange(value)}>{t(key)}</button>)}
+        {filters.map(([value, key]) => <button key={value} className={filter === value ? 'selected' : ''} aria-pressed={filter === value} onClick={() => onFilterChange(value)}>{t(key)}</button>)}
       </div>
     </div>
     <div className="table-head"><span>{t('progress.nameFormat')}</span><span>{t('progress.status')}</span><span>{t('progress.progress')}</span><span>{t('progress.outputDetail')}</span></div>

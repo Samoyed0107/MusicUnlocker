@@ -21,7 +21,7 @@ export function BatchCommandBar({
         <p className="section-step">3</p>
         <div>
           <h2>{t('workflow.start')}</h2>
-          <span className="pill batch-status">{statusText}</span>
+          <span className={`pill batch-status ${running ? 'status--running' : ''}`}>{statusText}</span>
         </div>
       </div>
       <div className="footer-actions">

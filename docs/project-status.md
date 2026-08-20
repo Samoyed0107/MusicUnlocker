@@ -19,6 +19,7 @@
 | 6E | `ENGINEERING_COMPLETE` | External-material architecture audit, hardening, security boundary review, and validation backlog closure. |
 | 7A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Release identity, CLI version reporting, localized GUI About information, and Windows executable metadata foundation. |
 | 7B-A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Desktop workflow layout: responsive setup workspace, batch command surface, and unified results/summary/preview area. |
+| 7B-B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Fluent visual tokens, shared status presentation, component normalization, and frontend accessibility improvements. |
 
 Stage 5D accepts existing files and directories passed as process arguments,
 retains initial arguments until the frontend retrieves them, and forwards later
@@ -79,3 +80,11 @@ columns. App lifecycle, batch events, retry eligibility, preview capability
 URLs, naming validation, DTOs, and backend behavior are unchanged. About build
 identity is removed from the permanent workspace pending a later dialog; no
 new theme system, animation, or native-window treatment is included.
+
+Stage 7B-B adds a semantic CSS token layer with prepared light/dark values,
+Windows-friendly typography, normalized controls and cards, and one shared
+status presentation mapping. It adds visible focus, 32px minimum button
+targets, selected filter semantics, byte-progress accessibility values, and
+accessible full-path labels while preserving all batch, retry, preview, DTO,
+and file-drop behavior. Explicit theme switching, Mica, and motion remain
+outside this phase.
