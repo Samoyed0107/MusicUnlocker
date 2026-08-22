@@ -7,15 +7,18 @@ claims are separately recorded in `docs/real-validation.md`.
 ## Current baseline
 
 - Branch: `master`.
-- Stage 7D implementation baseline: `bfdfe305dc1c5ecaa77d827d19004c109cc7d8e8`
-  (`docs: reconcile project baseline and roadmap`). Stage 7D is completed by
-  the commit containing this document.
+- Stage 8A implementation predecessor: `ca740d377a14555b35bb9e766c7eff1bfd1edcf6`
+  (`feat: add premium glass desktop polish`). Stage 8A is implemented by the
+  commit containing this document.
 - Product target: Windows 11 x64-first desktop utility.
 - Stage 0-7 history: frozen; do not renumber completed work.
 - Stage 5H: `IMPLEMENTED / AUTOMATED_TESTED / REAL_PASS`.
 - Stage 6: `ENGINEERING_COMPLETE`; real QMC supplied-key and KGM V5/KGG
   database-backed validation remains `PENDING_EXTERNAL_MATERIAL`.
 - Stage 7 Desktop Product Foundation: complete through Stage 7D.
+- Stage 8A Installer & Portable Packaging:
+  `IMPLEMENTED / PORTABLE_VALIDATED / INSTALLER_VALIDATION_PENDING_NSIS`.
+  Clean-machine validation remains pending for Stage 8C.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -44,6 +47,30 @@ Stage 7 sub-stages retain their original meanings:
 - 7D — Premium Glass & Interaction Polish: `COMPLETE`. Content glass is the
   supported visual system; native Mica remains disabled and optional.
 
+## Stage 8A release packaging
+
+The Windows x64 release workflow now derives version and product identity from
+`internal/version`, builds with Wails v2.15.0, embeds the official WebView2
+Evergreen bootstrapper as the missing-runtime recovery path, and stages a
+per-user NSIS installer plus a portable ZIP and SHA-256 checksums. The custom
+Wails NSIS project creates a current-user Start Menu shortcut, offers an
+optional desktop shortcut, writes the uninstall entry under HKCU, and does not
+register file associations.
+
+The portable ZIP was built, inspected, extracted outside the repository,
+launched, and closed successfully on the development machine. Its executable
+reported Windows product/file version `0.7.0`/`0.7.0.0` and carried the
+`wv2runtime.embed` production build tag. No repository-relative runtime files
+were required.
+
+NSIS is not installed on the current development machine (`makensis` is not on
+PATH and Wails Doctor reports NSIS as unavailable). Therefore the installer
+artifact, upgrade/reinstall behavior, Start Menu launch, uninstall lifecycle,
+and installer metadata have not been executed locally. The release script
+fails clearly before an installer build when NSIS is absent and never installs
+tooling. `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` also remains explicit; the
+installed WebView2 Runtime was not removed for testing.
+
 ## Toolchain
 
 The known Windows validation environment is:
@@ -53,7 +80,7 @@ The known Windows validation environment is:
 - Node.js 24.18.0
 - npm 11.16.0
 - Wails v2.15.0
-- WebView2 151.0.4129.86
+- WebView2 151.0.4129.101
 - canonical decoder module: `git.um-react.app/um/cli v0.2.19`
 
 Go module versions are pinned in `go.mod`, and the frontend dependency graph is
@@ -151,6 +178,7 @@ current mainline stages.
 
 ## Next work
 
-`docs/roadmap.md` is the sole current implementation roadmap. Stage 7D Premium
-Glass & Interaction Polish is complete. Stage 8A Installer & Portable Packaging
-is the first and next Windows release-engineering stage.
+`docs/roadmap.md` is the sole current implementation roadmap. Stage 8A
+Installer & Portable Packaging is implemented, with local NSIS lifecycle and
+clean-machine validation still pending. Stage 8B remains the next planned
+implementation stage.

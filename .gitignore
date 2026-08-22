@@ -30,7 +30,11 @@ logs/
 *.log
 
 # Wails, Go, and Node build artifacts
-build/
+build/bin/
+build/windows/installer/tmp/
+build/windows/installer/wails_tools.nsh
+build/windows/version.nsh
+artifacts/
 bin/
 dist/
 node_modules/

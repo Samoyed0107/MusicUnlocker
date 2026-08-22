@@ -37,5 +37,9 @@ Architecture and current handoff details are in
 [`docs/project-status.md`](docs/project-status.md). Planned work is tracked only
 in [`docs/roadmap.md`](docs/roadmap.md).
 
+Windows release packaging instructions, including the NSIS prerequisite,
+portable ZIP, WebView2 strategy, and checksum workflow, are in
+[`docs/windows-release.md`](docs/windows-release.md).
+
 MusicUnlocker is not a streaming client, downloader, cloud service, mandatory
 transcoder, or full music-library manager.

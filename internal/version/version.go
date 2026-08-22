@@ -4,8 +4,9 @@ package version
 import "fmt"
 
 const (
-	ApplicationName    = "MusicUnlocker"
-	ApplicationVersion = "0.7.0"
+	ApplicationName      = "MusicUnlocker"
+	ApplicationVersion   = "0.7.0"
+	ApplicationCopyright = "Copyright (c) 2026 MusicUnlocker contributors"
 )
 
 // These values are set by release builds with go -ldflags -X. Development

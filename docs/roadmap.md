@@ -109,23 +109,30 @@ release-engineering implementation stage.
 
 ### Stage 8A — Installer & Portable Packaging
 
-Status: `PLANNED`.
+Status: `IMPLEMENTED / PORTABLE_VALIDATED / INSTALLER_VALIDATION_PENDING_NSIS`.
 
 Target artifacts:
 
-- `MusicUnlocker-Setup.exe`
-- `MusicUnlocker-portable.zip`
+- `MusicUnlocker-Setup-<version>-win64.exe`
+- `MusicUnlocker-<version>-win64-portable.zip`
 
-Later research and implementation should cover:
+Implemented scope:
 
-- Wails/NSIS installer construction;
-- installation directory behavior;
-- Start Menu integration;
-- uninstall behavior;
-- application, version, and icon identity;
-- a sensible privilege model;
-- portable package layout;
-- WebView2 runtime strategy.
+- Wails v2 NSIS project and canonical `wails build -nsis` release path;
+- per-user installation under LocalAppData without UAC elevation;
+- current-user Start Menu entry and optional desktop shortcut;
+- conservative uninstall of explicitly installed files and shortcuts;
+- centralized application/version/icon identity across executable, installer,
+  and artifact names;
+- minimal portable package with license and third-party notices;
+- embedded official WebView2 Evergreen bootstrapper recovery strategy;
+- deterministic ZIP entry ordering/timestamps and `SHA256SUMS` generation.
+
+The portable artifact has passed local clean-directory extraction and launch.
+The current machine lacks NSIS, so installer build, upgrade/reinstall, Start
+Menu launch, uninstall, and registry lifecycle validation remain pending.
+Clean-machine missing-WebView2 validation remains Stage 8C work and is tracked
+as `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING`.
 
 ### Stage 8B — File Associations & Windows Lifecycle
 
