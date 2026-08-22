@@ -1,38 +1,55 @@
 # GUI architecture
 
-Stage 5A adds a Wails v2 desktop shell without moving business logic into the
-frontend:
+MusicUnlocker's desktop frontend is a presentation and state-mapping layer over
+one shared Go core:
 
 ```text
-React + TypeScript -> Wails bindings -> internal/app -> internal/batch -> internal/decode
+React + TypeScript
+    -> generated Wails bindings
+    -> internal/app
+    -> internal/batch
+    -> internal/decode
 ```
 
-`internal/app` owns the GUI contract and the single active batch lifecycle.
-It maps core results into explicit DTOs and never exposes upstream decoder
-types. The frontend only holds selected input paths, renders DTOs, and maps
-machine statuses to labels. Discovery, output planning, collision handling,
-and scheduling remain in Go.
+`internal/app` owns the Wails-facing contract and maps core results to stable
+JSON-shaped DTOs. It never exposes upstream decoder types or Go errors
+directly. Filesystem access, discovery, probing, scheduling, decoding, output
+planning, external-material selection, and finalization remain Go-owned.
 
-## DTOs and lifecycle
+## Core subsystem boundaries
 
-The facade exposes `GetAppInfo`, `SelectFiles`, `SelectFolder`,
-`SelectOutputFolder`, `DescribeInputs`, `SuggestOutputFolder`,
-`GetPreferences`, `SavePreferences`, `OpenOutputFolder`, `StartBatch`,
-`CancelBatch`, and `GetPendingLaunchPaths`. `BatchStartRequest`, `QueueItem`, `ProgressEvent`,
-`BatchSnapshot`, and `BatchCompleteEvent` are the stable JSON-shaped contract.
+- `internal/probe` performs bounded, content-first format probing. Extensions
+  supply candidate hints only.
+- `internal/decoder/upstream` is the sole adapter boundary to the pinned
+  canonical decoder module.
+- `internal/audiofmt` identifies the decrypted audio format; naming and
+  encrypted filename suffixes cannot choose the final extension.
+- `internal/outputplan` and `internal/naming` provide conservative source
+  cleanup, validated naming presets/templates, and no-overwrite planning.
+- `internal/audiometa` and `internal/containermeta` read offline metadata after
+  decode or from the supported NCM container fields.
+- `internal/metadataquality` validates Title, Artist, Album, and Album Artist
+  independently before naming.
+- `internal/externalmaterial` represents QMC EKeys and KGG databases as typed,
+  request-scoped backend capabilities.
+- `PreviewService` authorizes successful outputs with opaque, in-memory IDs.
+- `internal/app/launch.go` and the Wails single-instance callback queue launch
+  paths without starting work.
 
-`GetAppInfo` also returns the centralized application version, build timestamp,
-and build identifier. The localized About section renders these identity
-fields only; it does not expose decoder internals.
+## Application facade and lifecycle
 
-Each start receives a monotonically increasing `batchId`. Every transient
-event carries that ID, allowing the frontend to ignore events from an older
-generation. The facade rejects a second active start with
-`BATCH_ALREADY_RUNNING`. Cancellation calls the same context used by
-`batch.Engine.Run`; completion waits for the engine to return and emits one
-authoritative `musicunlocker:batch:complete` event.
+The facade exposes application identity, native file/folder/output dialogs,
+input descriptions and output suggestions, preferences, naming validation,
+batch start/cancel, launch-path retrieval, output-folder opening, secure preview,
+and QMC/KGG retry operations.
 
-Events are:
+The GUI permits one active batch. Each start receives a monotonically increasing
+`batchId`. Transient events carry that ID so React can ignore older
+generations. A second start is rejected with `BATCH_ALREADY_RUNNING`.
+Cancellation propagates through the same context used by the batch engine and
+does not return completion until worker and temporary-file cleanup finishes.
+
+The event contract includes:
 
 - `musicunlocker:batch:discovered`
 - `musicunlocker:batch:started`
@@ -41,246 +58,119 @@ Events are:
 - `musicunlocker:batch:complete`
 - `musicunlocker:launch:paths`
 
-The first four carry a batch ID and item data (progress also carries byte
-counters). The complete event carries the final ordered result list and
-summary counters; it is authoritative rather than reconstructed from live
-events.
+Live events support presentation only. The final `BatchComplete` result,
+including its ordered rows and summary counters, is authoritative.
 
-## Queue, dialogs, and progress
+## Selected inputs, discovery, and launch paths
 
-The input queue contains only user-selected files and directories. It is kept
-distinct from discovered files: recursive discovery begins only after Start,
-and discovered rows use the stable batch index from `internal/batch`.
+Selected inputs are user-selected files and directories. They remain distinct
+from discovered files: recursive Go discovery begins only when the user presses
+Start, and each discovered result receives a stable zero-based batch index.
+Queue rows correlate by that index even when workers finish out of order.
 
-The worker selector currently accepts 1, 2, 4, or 8 jobs and the backend
-validates the range 1..8. Progress displays bytes written. Source byte size is
-metadata and is not presented as an exact decoded-output percentage.
+Wails owns native multi-file, folder, and output-directory dialogs. Native
+in-window file/folder drop supplies OS absolute paths; the frontend only adds
+those paths to the selected-input queue. Drop never starts decoding.
 
-Wails runtime dialogs support multi-file selection, folder selection, and
-output-folder selection. Dialog cancellation returns an empty selection and
-is not an application error. Stage 5B enables Wails v2's native
-`options.DragAndDrop{EnableFileDrop:true, DisableWebViewDrop:true}` and the
-frontend registers `runtime.OnFileDrop(callback, true)`. The drop zone uses
-`--wails-drop-target: drop`; Wails supplies absolute OS paths and applies its
-active drop-target class. The listener is removed with `OnFileDropOff` during
-React cleanup. Drop adds queue entries only and never starts a batch.
+Existing files or directories passed on process startup use the same queue
+helper. Initial arguments are retained until the frontend asks for them; later
+launches arrive through Wails `SingleInstanceLock`. Paths received while a
+batch is running are deferred until authoritative completion. Startup
+arguments, Explorer drag-to-EXE, and future file associations may queue inputs,
+but they must always wait for explicit user Start.
 
-## Queue and output policy
+## Batch, progress, naming, and output
 
-Files, folders, and native drops share one path-deduplicating queue helper.
-Windows case and slash differences are treated conservatively as duplicates.
-Folders remain one row until discovery begins, and the bounded queue displays
-the type, basename, and shortened full path. Selection and drop controls are
-locked while a batch is running or cancelling; drops during that time are
-ignored with an inline message. Paths supplied to the executable use the same
-queue helper and are never started automatically. Initial process arguments are
-retained until `GetPendingLaunchPaths` is called; later launches use Wails
-`SingleInstanceLock` and are deferred while a batch is running or cancelling,
-then flushed after authoritative completion.
+The backend validates 1-8 workers. `internal/batch` uses bounded concurrency,
+recursive deterministic discovery, stable result ordering, and serialized
+queue-order ownership for items that share an output target namespace.
+Per-file failure does not terminate the batch.
 
-When auto-suggestion is enabled and output has not been explicitly selected,
-one file suggests `<source directory>\Unlocked`; one directory suggests
-`<parent>\<directory name> - Unlocked`. Multiple inputs are treated as
-ambiguous and leave output unset. Browse marks the destination as an explicit
-override; it is not changed by later queue edits. Reset suggestion clears the
-override.
+Progress reports bytes written and optional source size; it does not claim that
+encrypted source size is an exact decoded-output percentage. Cancellation waits
+for active workers and filesystem cleanup.
 
-Preferences contain only `MaxWorkers`, `Theme`, `AutoSuggestOutput`,
-`NamingMode`, `CustomNamingTemplate`, and stable `Language` (`SYSTEM`,
-`zh-CN`, or `en-US`). Theme uses stable `SYSTEM`, `LIGHT`, or `DARK` values.
-Preferences are stored as JSON at the per-user
-`os.UserConfigDir()/MusicUnlocker/preferences.json`.
-The file is bounded, unknown fields are ignored, invalid values use defaults,
-malformed files do not crash the app, and writes use a same-directory
-temporary file followed by rename (with a Windows replacement fallback).
+Naming configuration is validated and rendered by the Go `internal/naming`
+backend. React does not implement a second template parser. Each batch captures
+its validated naming configuration immutably. Decoded embedded metadata remains
+primary, trusted NCM container metadata fills missing fields, and the metadata
+quality guard rejects suspicious fields independently. Safe fallback remains a
+successful decode.
 
-## Presentation and controls
+The decrypted stream is content-sniffed before output planning. Workers write
+and close temporary files before metadata naming, and final destinations are
+committed in deterministic queue-index order with no replacement. Sources are
+not deleted or rewritten.
 
-Machine statuses retain their backend values while the UI maps them to
-Completed, Not encrypted, Already exists, Key required, Database required,
-Unsupported, Unknown format, Failed, and Cancelled. Known error codes have
-concise explanations in expandable row details. Results use stable Index
-ordering and local All/Completed/Skipped/Blocked/Problems filters. Progress
-uses actual bytes written; any source-size bar is explicitly secondary and
-does not show a decoded percentage. Summary counters come from the final
-complete DTO and include Completed, Skipped, Blocked, Failed/Cancelled, and
-Written groups.
+## Secure preview
 
-Open Output Folder is a backend operation. It accepts only an absolute path
-that exists as a directory or file, resolves a file to its parent, and passes
-the validated path as a separate argument to `explorer.exe`; the frontend
-cannot run shell commands.
+A successful completed row may request a preview URL using only
+`batchId + stable index`. The frontend cannot provide an arbitrary local path
+to `PreviewService`.
 
-The UI defaults to the persisted `SYSTEM` theme and follows
-`prefers-color-scheme`, with explicit `LIGHT` and `DARK` overrides. It uses
-Segoe UI/system fonts, semantic
-buttons, visible keyboard focus, text status labels, disabled states, and a
-bounded processing-list scroll region. The frontend uses a small
-`LocalizationProvider` and typed
-translation hook; locale changes are presentation-only and do not alter batch,
-preview, queue, naming, or output state.
+The application validates the authoritative result and registers its output
+under an unpredictable, in-memory capability ID. A loopback HTTP service bound
+to `127.0.0.1` serves only authorized `GET`/`HEAD` requests with byte-range
+support, `nosniff`, and `no-store`. It has no directory browser or arbitrary
+static-file route. Capability registrations are cleared when a new batch starts
+and at shutdown.
 
-## Manual Stage 5B GUI checklist
+React owns one native HTML audio element. Missing output, token expiry, or an
+unsupported WebView codec makes preview unavailable but never changes a decoder
+`SUCCESS` result into failure. Starting a new batch releases the prior preview;
+language and theme changes must not restart preview or mutate batch semantics.
 
-1. Run `wails dev` and confirm the drop zone renders.
-2. Drop one file, several files, and one folder; confirm each remains a queue
-   row, duplicates are ignored, and no batch starts automatically.
-3. Confirm a single-file and single-folder output suggestion, then Browse and
-   verify the explicit destination is preserved.
-4. Start a harmless synthetic batch, inspect filters, status details, output
-   folder action, and cancellation.
-5. Restart and confirm only worker count/output-suggestion preference returns;
-   inputs and job history do not persist.
+## External-material retries
 
-## Current limitations
+Blocked QMC STag/MusicEx rows can invoke
+`RetryQMCWithExternalKey(batchID, itemIndex)`. Go validates the completed
+session and row before opening a native EKey file chooser. The selected path
+and raw material never enter React, DTO results, preferences, or logs.
 
-There is no pause/resume, overwrite mode, source deletion, online external-key
-acquisition, KGG database loading, metadata/network access, FFmpeg integration,
-tray support, installer packaging, file association, or Mica backdrop.
-Physical Explorer drag-to-EXE still requires manual verification in
-a real Windows installation; automated tests do not perform WebView E2E or
-decode real music.
+Blocked KGM V5/KGG rows can invoke
+`RetryKGGWithDatabase(batchID, itemIndex)`. Go opens the database chooser,
+performs bounded regular-file validation, and passes a read-only,
+request-scoped database capability through the normal batch/decode path. The
+database path never enters React or persisted preferences.
 
-## Stage 7B-A desktop workflow layout
+Both retries use the captured source, output root, and naming configuration.
+They act on the same stable result row, recompute the authoritative summary,
+and reuse normal atomic finalization and preview authorization. Cancellation or
+pre-decode validation failure leaves the row unchanged. QMC EKey and KGG
+database requirements remain separate typed states.
 
-Stage 7B-A changes presentation hierarchy only. `App.tsx` continues to own
-batch ID filtering, running/cancelling state, retry state, preview selection,
-preferences, and Wails event subscriptions. Presentation-only components split
-the interface into a compact application header, responsive setup workspace,
-batch command surface, and unified results workspace.
+## Preferences, localization, theme, and About
 
-The setup workspace places file/folder selection and the selected-input queue
-first, then output destination and backend-validated naming configuration;
-the worker selector is in a native HTML `details` advanced section. At the
-900px native minimum width the setup stacks vertically; at wider widths it uses
-two columns. The command surface owns the existing ready/running/complete
-label and Start action. Cancel is rendered only while a batch is running or
-cancelling; this is presentation-only and does not change cancellation logic.
+Preferences are small per-user JSON containing worker count, theme,
+output-suggestion mode, naming configuration, and language. They contain no
+input history, raw filenames, keys, external-material paths, or database
+content. Reads are bounded and invalid values recover to safe defaults; writes
+use a same-directory temporary file and replacement.
 
-The results workspace keeps existing stable-index ordering, local filters,
-row status calculation, retries, and single preview element. It now groups the
-results title, filters, rows, final summary, one Open Output Folder action, and
-preview within one card. The localized About identity fields are no longer a
-permanent workspace card; a dialog is deliberately deferred to a later 7B
-phase. No explicit theme support, native material, animation, or backend
-contract change is included in this phase.
+Bundled localization supports `SYSTEM`, `zh-CN`, and `en-US`, with English as
+the complete fallback. User-visible presentation strings are localized;
+machine statuses, error codes, naming modes, and template tokens are stable and
+untranslated.
 
-## Stage 7B-B visual system and accessibility
+Theme preferences use `SYSTEM`, `LIGHT`, and `DARK`. React applies semantic
+tokens and asks Wails to coordinate the native title bar. Theme changes are
+presentation-only: they do not recreate the batch, selected queue, result
+snapshot, retry state, or preview element. Short transitions respect
+`prefers-reduced-motion`.
 
-Stage 7B-B retains the Stage 7B-A component boundaries and changes only
-frontend presentation. `style.css` defines semantic tokens for light-mode
-surfaces, controls, text, borders, spacing, radius, typography, accent, and
-status colors; the system dark-scheme media query supplies matching token
-values for a later theme-selection phase. It does not add a preference control
-or change the existing theme persistence behavior.
+The localized modal About dialog obtains application name, version, build
+timestamp, and build identifier through `GetAppInfo`, backed by
+`internal/version`. Stage 7A release identity does not imply installer,
+association, or updater support.
 
-`StatusBadge` is the shared item-status presentation mapping used by result
-rows. It leaves core status strings untouched and renders a localized label,
-symbol, and semantic tone for completed, blocked, failed, skipped, neutral,
-and waiting/running states. Result filters now expose `aria-pressed`, source
-byte progress includes accessible values without claiming decoded percentage,
-and standard button targets are at least 32px with visible focus styling.
-Input and output paths remain visually truncated while their full values stay
-available to assistive technology. Batch events, stable ordering, retry
-eligibility, preview URL lifecycle, and Wails file-drop behavior are unchanged.
+## Current boundaries
 
-## Stage 7C Windows-native experience
+There is no pause/resume, overwrite mode, source deletion, network key
+acquisition, online metadata, FFmpeg transcoding, tray integration, installer,
+file association, or automatic updater. QMC supplied-key and KGM V5/KGG
+database-backed real decoding remain pending compatible external material.
+Other real-file decoder coverage is tracked in `docs/real-validation.md`.
 
-`App.tsx` owns the theme preference alongside the existing language and naming
-preferences. Loading normalizes legacy lowercase values to `SYSTEM`, `LIGHT`,
-or `DARK`; applying a theme updates `document.documentElement.dataset.theme`,
-the browser `color-scheme`, and the native Wails title-bar theme. Saving remains
-part of the existing bounded preference object and is deferred while a batch is
-locked, exactly like other presentation preferences. Theme changes do not alter
-component identity or the batch, preview, retry, file-drop, or launch-path
-lifecycle.
-
-Light and dark semantic token sets remain in `style.css`. `SYSTEM` selects the
-appropriate set through `prefers-color-scheme`; explicit modes override it.
-Short color, border, control, and modal transitions provide presentation polish,
-while `prefers-reduced-motion: reduce` collapses them. `Icon` supplies
-maintainable, current-color inline SVG paths, and `StatusBadge` retains visible
-localized text so the icon is supplemental rather than the sole status cue.
-
-`AboutDialog` is a modal, localized surface opened from the compact header. It
-uses the existing `GetAppInfo` DTO, backed by `internal/version`, for application
-name and release identity. Supported-format and offline-operation copy stays in
-the existing localization resources. Escape, the labeled close button, and
-backdrop dismissal close the dialog; it is not persisted as workspace content.
-
-The pinned Wails v2.15 Windows backend supports runtime title-bar theme changes
-and offers `BackdropType=Mica` without Windows App SDK. Backdrop support requires
-Windows 11 build 22621 or later and a translucent/transparent WebView/window
-configuration. Stage 7C does not enable it because that composition change is
-riskier than the presentation goal and would not improve older-Windows behavior.
-Opaque semantic surfaces remain the fallback, the executable remains portable,
-and no new native dependency is introduced.
-
-## Stage 5E2 file naming
-
-The facade exposes `NamingConfigDTO` and `ValidateNamingConfig`. The latter
-returns validity, a concise backend error, and a sample filename rendered by
-`internal/naming`; React does not parse templates. `BatchStartRequest` carries
-the validated naming snapshot, and result DTOs preserve the authoritative
-final output path plus structured metadata-fallback fields. The GUI disables
-naming controls while a batch runs or cancels. Preferences default and recover
-to `KEEP_SOURCE` when naming fields are missing or invalid.
-
-## Stage 5C audio preview
-
-Successful completed rows can request a media URL through the application
-facade using `BatchID + queue Index`. The application retains only the latest
-completed snapshot and validates that the authoritative result is `SUCCESS`,
-has a non-empty output path, and still resolves to a regular file.
-
-The application owns a short-lived HTTP service bound explicitly to
-`127.0.0.1` on an OS-assigned port. URLs contain only unpredictable,
-in-memory capability IDs; the frontend can never provide a filesystem path to
-the endpoint. The registry is cleared when a new batch starts and on process
-shutdown, so tokens do not persist. Every request reopens and revalidates the
-authorized path, uses conservative `nosniff`/`no-store` headers, and serves
-only `GET`/`HEAD` through `http.ServeContent`, including byte ranges for seek.
-No directory browsing or arbitrary static-file route exists.
-
-The UI has one native HTML audio element and one compact player. A new batch
-stops and releases the old source; stale asynchronous URL responses are
-discarded. Play is offered only for successful rows. A missing output or an
-unsupported WebView codec makes preview unavailable without changing the
-decoder result, which remains `SUCCESS`; Open Output Folder remains available.
-Preview is native browser playback only and does not add metadata networking,
-FFmpeg, transcoding, waveform, or cover-art support.
-
-## Stage 6B external-key retry
-
-`RetryQMCWithExternalKey(batchID, itemIndex)` is the only GUI retry operation.
-It validates the retained completed-batch session and item eligibility before
-opening a backend-owned native file dialog. The dialog returns a path only to
-Go; Go reuses `externalmaterial.ReadEKeyFile`, builds a request-scoped provider,
-and calls the normal `batch.Engine` with the exact source path and captured
-output/naming configuration. React receives only retry state and the ordinary
-non-secret result snapshot.
-
-Cancellation or malformed input leaves the row unchanged and performs no
-decode. A supplied-key decode failure becomes a cautious retryable failure,
-not `QMC_EXTERNAL_KEY_REQUIRED`. On success, the result replaces the original
-queue index, summary counts are recomputed, and the existing preview path is
-usable through the normal `GetPreviewURL` authorization. The native dialog
-title is currently a stable backend string rather than frontend-localized;
- this avoids coupling native dialog code to React localization.
-
-## Stage 6D KGG database retry
-
-`RetryKGGWithDatabase(batchID, itemIndex)` is the only GUI database retry
-operation. The backend validates the retained completed-batch session, item
-index, stored source path, and KGG-specific retry eligibility before opening a
-native Windows file dialog. It reuses
-`externalmaterial.ValidateKGGDatabasePath` and constructs a request-scoped
-`KGGDatabaseProvider`; the database path is never a JavaScript argument and is
-not included in DTOs, results, preferences, or logs.
-
-The selected database is used only for the exact logical row. The captured
-output root, naming configuration, source path, and stable queue index are
-preserved. Cancellation or pre-decode validation failure does not mutate the
-row. A compatible database with no matching entry remains a cautious,
-independently retryable failure. QMC EKey and KGG database capabilities remain
-separate typed backend paths.
+Native Mica is not enabled. Stage 7D requires frontend glass content surfaces
+with an opaque fallback; Mica remains an optional Windows experiment rather
+than an architectural dependency.

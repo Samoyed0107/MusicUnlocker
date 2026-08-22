@@ -1,153 +1,132 @@
-# Real validation backlog
+# Real validation
 
-This document records validation status without storing real audio files.
+This document separates implementation and automated evidence from tests using
+real external media. No real audio, decoded output, EKey, or KGG database is
+stored in the repository.
 
-| Family | Status | Evidence or note |
-| --- | --- | --- |
-| KGM V3 | `REAL_PASS` | Real decode, MP3 sniff despite `.flac` source suffix, 5,641,481-byte payload, playback/seeking, clean naming, and no-overwrite validated. |
-| NCM | `REAL_PASS` | Real NCM -> MP3 decode completed; output 3,977,343 bytes; SHA-256 `AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`; ID3v2.4 and MPEG frame confirmed; GUI completion, playback, and seek confirmed. |
-| KWM | `REAL_PENDING` | Code path is wired and tested; real sample still needed. |
-| QMC STag | `PROBE_REAL_PASS_DECODE_BLOCKED` | Real STag sample was confirmed; external key is required. Stage 6A core is automated-tested, but no real key was available. |
-| KGM v5/KGG | `REAL_PENDING_EXTERNAL_DATABASE` | Database support is intentionally deferred. |
-| TM | `REAL_PENDING` | Synthetic content and adapter validation are tested. |
-| Xiami | `REAL_PENDING` | Synthetic structural probe and malformed adapter tests are present. |
-| Ximalaya | `REAL_PENDING` | Controlled `.x2m`, `.x3m`, and `.xm` candidate validation is tested synthetically. |
-| QMC self-contained variants | `REAL_PENDING` | QTag/static/embedded-key paths remain offline-only and need real samples. |
+## Status vocabulary
 
-The known external NCM regression sample is `normal_mp3-1773267.ncm`, with
-SHA-256 `cde0d8bcbe4ebf08daba9f137c965248b0d2a4968415c14d5bac35a9b2f19dbf`.
-It is not copied into this repository.
+- `IMPLEMENTED` — the code path exists; this alone claims neither automated nor
+  real-file success.
+- `AUTOMATED_TESTED` — synthetic/unit/integration or smoke coverage passed
+  without treating copyrighted real media as a repository fixture.
+- `ENGINEERING_COMPLETE` — the intended engineering scope and hardening are
+  complete even if external-material validation remains.
+- `PROBE_REAL_PASS` — a real file's family/variant evidence was identified; it
+  does not prove decoding.
+- `REAL_PASS` — the described behavior was observed with a real external file.
+- `REAL_PENDING` — the implementation exists, but compatible real-file evidence
+  has not yet been recorded.
+- `PENDING_EXTERNAL_MATERIAL` — real validation cannot proceed without a
+  compatible key, database, or paired external input.
 
-## Stage 5C real GUI validation
+Statuses apply only to the scope named in each row. A probe pass is not a decode
+pass, and engineering completion is not silent promotion of real compatibility.
 
-- NCM decoder: `REAL_PASS`.
-- Wails GUI NCM pipeline: `REAL_PASS`.
-- MP3 in-app Preview: `REAL_PASS`; playback was confirmed at approximately 4:08.
-- HTTP Range/seek through PreviewService: `REAL_PASS`.
+## Current real-validation matrix
+
+| Scope | Engineering evidence | Real status | Evidence or remaining requirement |
+| --- | --- | --- | --- |
+| KGM V3 decode | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PASS` | Real MP3 output, content sniff despite a misleading suffix, playback/seek, source preservation, clean naming, and no-overwrite behavior validated. |
+| Stage 5H KGM metadata quality/fallback | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PASS` | Suspicious KGM metadata no longer polluted the filename; safe fallback retained identical decoded bytes. |
+| NCM decode | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PASS` | Real NCM-to-MP3 decode, GUI completion, playback/seek, and output hash validated. |
+| NCM metadata naming | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PASS` | Real keep-source and metadata-aware names were produced with identical decoded bytes. |
+| QMC STag probe | `IMPLEMENTED / AUTOMATED_TESTED` | `PROBE_REAL_PASS` | A real STag sample was identified. |
+| QMC STag supplied-key decode | `ENGINEERING_COMPLETE / AUTOMATED_TESTED` | `PENDING_EXTERNAL_MATERIAL` | A compatible real EKey is unavailable. |
+| KGM V5/KGG core and GUI retry | `ENGINEERING_COMPLETE / AUTOMATED_TESTED` | `PENDING_EXTERNAL_MATERIAL` | A compatible real KGM V5/KGG file and database are unavailable. |
+| KWM | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PENDING` | Compatible real sample still needed. |
+| TM | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PENDING` | Compatible real sample still needed. |
+| Xiami | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PENDING` | Compatible real sample still needed. |
+| Ximalaya | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PENDING` | Compatible real sample still needed. |
+| QMC self-contained variants | `IMPLEMENTED / AUTOMATED_TESTED` | `REAL_PENDING` | QTag/static/embedded-key paths need compatible real samples. |
+
+## Stage 5H real KGM metadata-quality retest
+
+The real KGM V3 sample was retested after Stage 5H. Both `KEEP_SOURCE` and
+metadata-aware naming produced the safe readable output name:
+
+```text
+茅野愛衣、戸松遥、早见沙织 - secret base ～君がくれたもの～ (secret base ~你给我的所有~)(10 years after Ver.)_MQ.mp3
+```
+
+Both outputs were:
+
+- Length: 5,641,481 bytes
+- SHA-256:
+  `57BA83391720592FD2DED2380033162DE51C17FDFB80CA6461105766FC4273B6`
+
+The previous corrupted metadata-derived filename containing replacement or
+garbage Unicode was no longer produced. This is `REAL_PASS` evidence that the
+Stage 5H guard prevents suspicious KGM metadata from polluting the final
+filename for this sample and that safe fallback preserves decoded audio bytes.
+
+This does **not** prove that the underlying malformed KGM metadata was
+successfully re-decoded into corrected metadata. Stage 5H protects naming; no
+separate KGM metadata-encoding repair is claimed.
+
+## NCM real regression
+
+The real NCM sample was retested with:
+
+- `KEEP_SOURCE`:
+  `Gabrielle Aplin - Salvation(1).mp3`
+- metadata-aware `TITLE_ARTIST`:
+  `Salvation - Gabrielle Aplin.mp3`
+
+Both outputs were:
+
+- Length: 3,977,343 bytes
+- SHA-256:
+  `AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`
+
+This reconfirms real NCM decode, NCM metadata naming, and byte identity across
+naming modes. Earlier Stage 5G tests also observed `TITLE`,
+`ARTIST_TITLE`, custom metadata templates, and source-only `{source}` naming
+with the same decoded hash.
+
+The known external NCM regression input is `normal_mp3-1773267.ncm` with
+SHA-256
+`cde0d8bcbe4ebf08daba9f137c965248b0d2a4968415c14d5bac35a9b2f19dbf`.
+It is not copied into the repository.
+
+## Desktop real evidence
+
+Recorded real desktop evidence includes:
+
 - Wails production Windows build: `REAL_PASS`.
+- Real NCM GUI batch completion: `REAL_PASS`.
+- MP3 PreviewService playback and HTTP Range/seek: `REAL_PASS`.
+- Production GUI startup after the localization correction: `REAL_PASS`.
+- English, Simplified Chinese, and system-language behavior:
+  `REAL_PASS`.
+- Source-only custom naming correction: `REAL_PASS`.
+- Playback continuity across language switching: `REAL_PASS`.
 
-No real audio or decoded output is stored in this repository.
+Stage 7C theme persistence/migration and the frontend build, localization,
+preview, retry, and theme/About smoke checks are `AUTOMATED_TESTED`. A
+browser-rendered dark theme and localized About interaction with a mocked Wails
+facade have visual-smoke evidence. Native title-bar synchronization across all
+theme modes, live Windows system-theme changes, and older-Windows opaque
+fallback remain manual validation items; these do not reopen Stage 7C
+engineering status.
 
-## Stage 5E2 and 5F acceptance regression
+Physical Explorer launch/drag-to-EXE behavior remains part of the clean-machine
+release-readiness checklist. Launch arguments and single-instance queue handoff
+are implemented and automated-tested, and they never auto-start decoding.
 
-- NCM decoding: `REAL_PASS` (existing evidence preserved).
-- Audio integrity SHA-256: `REAL_PASS` (existing evidence preserved).
-- Stage 5E2 metadata-dependent naming on the known NCM: metadata fallback was
-  observed because decoded-audio metadata is unavailable under the current
-  design; this is not by itself a Core failure.
-- Stage 5E2 CUSTOM `{source}` GUI naming: `REAL_FAIL / FIX_IMPLEMENTED /
-  REAL_RETEST_PENDING`. The source-only template was incorrectly forced through
-  metadata-availability fallback; no real audio was used for the automated fix.
-- Stage 5F production GUI: `REAL_FAIL / FIX_IMPLEMENTED /
-  REAL_RETEST_PENDING`. Debug DevTools identified the first exception as
-  `Localization interpolation mismatch: batch.itemsAdded`; the favicon 404 was
-  non-causal. A corrected production EXE has not yet been physically confirmed.
+## External-material backlog
 
-## Stage 5F1 real validation
+QMC STag supplied-key support and its backend-owned GUI retry are
+`ENGINEERING_COMPLETE / AUTOMATED_TESTED`. The real STag probe is
+`PROBE_REAL_PASS`, but supplied-key decoding remains
+`PENDING_EXTERNAL_MATERIAL` because no compatible EKey is available.
 
-- Production GUI startup after the localization fix: `REAL_PASS`.
-- English, Simplified Chinese, and follow-system localization: `REAL_PASS`.
-- Stage 5E2 CUSTOM `{source}` naming: `REAL_PASS`; observed output was
-  `Gabrielle Aplin - Salvation(1)-TEST.mp3`.
-- Decoded audio SHA-256: `REAL_PASS`; `AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`.
+KGM V5/KGG database support and its backend-owned GUI retry are
+`ENGINEERING_COMPLETE / AUTOMATED_TESTED`. Synthetic matching and missing
+`AudioHash` database cases are covered. Real database-backed decoding remains
+`PENDING_EXTERNAL_MATERIAL` because no compatible file/database pair is
+available.
 
-## Stage 5F2 playback continuity
-
-- Language switching presentation: manually observed working.
-- Playback continuity across language switching: `REAL_PASS`. Audio continued
-  without restart, the paused position remained stable, and the revised batch
-  status badge placement was manually accepted.
-
-## Stage 5G NCM naming
-
-- Implementation and automated synthetic validation: `IMPLEMENTATION_COMPLETE /
-  AUTOMATED_TESTED`.
-- Real NCM naming retest: `COMPLETE / REAL_PASS`.
-
-Stage 5G real evidence: `KEEP_SOURCE` -> `Gabrielle Aplin - Salvation(1).mp3`;
-`TITLE` -> `Salvation.mp3`; `ARTIST_TITLE` -> `Gabrielle Aplin - Salvation.mp3`;
-`TITLE_ARTIST` -> `Salvation - Gabrielle Aplin.mp3`; `{title}-{artist}` ->
-`Salvation-Gabrielle Aplin.mp3`; `{album} - {title}` ->
-`English Rain - Salvation.mp3`; `{source}-TEST` ->
-`Gabrielle Aplin - Salvation(1)-TEST.mp3`. All variants preserved identical
-decoded bytes: 3,977,343 bytes, SHA-256
-`AAED5081FD7DD1D1C8CFE24E2E644A05A40419775A8A551837B2950A38201762`.
-Controlled isolated CUSTOM retests did not reproduce earlier ambiguous fallback
-observations; no confirmed product bug remains.
-
-## Stage 5H metadata quality guard
-
-- Implementation: `IMPLEMENTED`.
-- Synthetic multilingual, corruption, field-fallback, SHA-256 identity,
-  `{source}-TEST`, QMC provider, and KGG provider regressions:
-  `AUTOMATED_TESTED`.
-- Reported real KGM metadata corruption: `REAL_RETEST_PENDING`.
-
-The earlier KGM V3 decode evidence in the family table predates Stage 5H and
-does not constitute a real pass for the metadata quality guard. No real KGM
-audio or metadata was accessed during Stage 5H implementation, and Stage 5H is
-not marked real-validated.
-
-## Stage 6B GUI retry validation status
-
-- GUI external-key retry workflow: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
-- Real QMC STag probe: `REAL_PASS`.
-- Real supplied-key decode: `REAL_RETEST_PENDING / EXTERNAL_KEY_MATERIAL_REQUIRED`.
-- No real QMC file or EKey was accessed during Stage 6B implementation.
-
-## Stage 6C KGM V5/KGG validation status
-
-- KGM V3: `REAL_PASS` (existing evidence unchanged).
-- KGM V5/KGG database Core: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
-- Synthetic plaintext SQLite lookup: passed; matching and missing `AudioHash`
-  cases were exercised without copyrighted or user data.
-- Real KGM V5/KGG supplied-database decode:
-  `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
-- No real KGG database or KGM V5 file was accessed.
-
-## Stage 6D KGG database GUI retry status
-
-- KGG database GUI retry: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
-- Native database selection, backend-only path lifetime, per-item result
-  replacement, summary recomputation, localization, and preview continuity
-  are covered by automated tests and smoke checks.
-- Real KGM V5/KGG database-backed GUI decode:
-  `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
-- No real KGG database, KGM V5 file, or installed Kugou application data was
-  accessed during Stage 6D.
-
-## Stage 6 external-material validation backlog
-
-These items are validation backlog only and do not block Stage 6 engineering
-closure:
-
-- QMC STag supplied EKey: a compatible real file was probed, but a real EKey
-  is unavailable; supplied-key decode remains `PENDING_EXTERNAL_MATERIAL`.
-- KGM V5/KGG database-backed decode: Core and GUI are implemented and
-  automated-tested, but a compatible real file/database is unavailable;
-  database-backed decode remains `PENDING_EXTERNAL_MATERIAL`.
-
-The debug production EXE was still running when `wails dev` was started during
-the failed investigation. Because Stage 5D uses a fixed Wails
-`SingleInstanceLock` ID, that run does not establish that `wails dev` alone
-white-screened. A valid dev reproduction requires closing all MusicUnlocker
-instances first, then running `wails dev` alone.
-
-## Stage 7C Windows-native experience
-
-- Theme preference migration/persistence and default: `AUTOMATED_TESTED`.
-- Frontend build, localization, preview, retry, and theme/About smoke checks:
-  `AUTOMATED_TESTED`.
-- Browser-rendered dark theme and localized modal About interaction with
-  a mocked Wails facade: `VISUAL_SMOKE_PASS`.
-- Native Wails title-bar synchronization in `SYSTEM`, `LIGHT`, and `DARK`:
-  `REAL_MANUAL_VALIDATION_PENDING`.
-- Live Windows system-theme change while `SYSTEM` is selected:
-  `REAL_MANUAL_VALIDATION_PENDING`.
-- Windows 10/older-Windows opaque fallback: `REAL_MANUAL_VALIDATION_PENDING`.
-
-No native Mica backdrop was enabled. The Wails v2.15 API supports it only on
-Windows 11 build 22621 or later and requires changing transparent/translucent
-window composition. The documented opaque fallback preserves portable EXE
-behavior without Windows App SDK. No real audio was used and no existing real
-decoder validation status changes in Stage 7C.
+These are explicit validation backlog items and do not block the next product
+stage. Material remains offline, request-scoped, non-persistent, and absent from
+frontend state, results, preferences, and logs.

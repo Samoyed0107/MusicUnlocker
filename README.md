@@ -1,22 +1,41 @@
 # MusicUnlocker
 
-MusicUnlocker is a planned Windows desktop application for unlocking supported encrypted music formats while preserving source files and decoded audio formats where possible.
+MusicUnlocker is a Windows 11 x64-first desktop utility for decoding supported
+encrypted music files locally. It uses a shared Go core with a Wails v2 and
+React/TypeScript desktop frontend; the same probe, decode, batch, naming, and
+output rules are used by the GUI and developer CLIs.
 
-The Go core has been bootstrapped, with upstream decoding algorithms pinned to a fixed dependency. A minimal Wails v2 desktop shell is available for local development.
+Current format-family support includes KGM/VPR, NCM, KWM, QMC, TM, Xiami, and
+Ximalaya paths. Support is not the same as real-file validation: some variants
+remain validation-pending, and QMC STag or KGM V5/KGG inputs require compatible
+external material supplied explicitly at runtime. See
+[`docs/real-validation.md`](docs/real-validation.md) for the evidence matrix.
 
-## GUI development
+The application is offline-first, preserves source files, never silently
+overwrites outputs, writes decoded output atomically, and avoids transcoding.
+The final output extension comes from decoded-content sniffing rather than the
+encrypted filename suffix. Metadata and naming failures fall back safely and
+do not alter decoded audio bytes.
 
-With the Wails CLI and Node.js installed:
+The desktop application provides native file/folder selection, recursive batch
+processing, native drop, launch-argument and single-instance queue handoff,
+metadata-aware naming, localization, secure local preview, external-material
+retry flows, System/Light/Dark themes, and About/version identity.
 
-```text
+## Developer build
+
+Install the repository's Go and frontend dependencies plus the Wails v2 CLI,
+then run:
+
+```powershell
 wails dev
 wails build
 ```
 
-The application uses the existing Go module and keeps the decoder core and
-batch engine independent from the React presentation layer. See
-`docs/gui-architecture.md` for the facade, event, and queue contract.
+Architecture and current handoff details are in
+[`docs/gui-architecture.md`](docs/gui-architecture.md) and
+[`docs/project-status.md`](docs/project-status.md). Planned work is tracked only
+in [`docs/roadmap.md`](docs/roadmap.md).
 
-The desktop UI supports Add Files, Add Folder, native file/folder drag-and-drop,
-output selection, Start, Cancel, result filters, and Open Output Folder. Drops
-only add local filesystem paths to the queue; they never start decoding.
+MusicUnlocker is not a streaming client, downloader, cloud service, mandatory
+transcoder, or full music-library manager.

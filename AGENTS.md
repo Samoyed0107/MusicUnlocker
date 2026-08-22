@@ -21,7 +21,7 @@
 - Decode outputs must be written atomically; source audio is never deleted by default.
 - The decoding core remains independent from any GUI.
 - External-key and database requirements must be represented as typed states or errors.
-- The Batch Engine must remain UI-independent and sequential until a later stage.
+- The Batch Engine must remain UI-independent and use bounded concurrency; do not create unbounded per-file workers.
 - Per-file failures must not terminate a batch; output-exists is a skip, not a fatal batch error.
 - External-material requirements are batch statuses, not generic failures.
 - Batch directory traversal must not follow symlink loops and result ordering must be deterministic.

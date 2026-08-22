@@ -1,121 +1,152 @@
 # Project status
 
-| Stage | Status | Scope |
+This is the fresh-session handoff for the current MusicUnlocker mainline.
+Implementation claims below are based on source and commit history; real-file
+claims are separately recorded in `docs/real-validation.md`.
+
+## Current baseline
+
+- Branch: `master`.
+- Audited implementation HEAD: `b9934527649d1b7f0647c9a8ed8d3d828a5654af`
+  (`fix: guard naming against corrupt metadata`).
+- Product target: Windows 11 x64-first desktop utility.
+- Stage 0-7 history: frozen; do not renumber completed work.
+- Stage 5H: `IMPLEMENTED / AUTOMATED_TESTED / REAL_PASS`.
+- Stage 6: `ENGINEERING_COMPLETE`; real QMC supplied-key and KGM V5/KGG
+  database-backed validation remains `PENDING_EXTERNAL_MATERIAL`.
+- Stage 7 Desktop Product Foundation: complete through Stage 7C.
+
+The documentation reconciliation commit following the audited implementation
+HEAD changes no production code, tests, frontend code, dependencies, or build
+configuration.
+
+## Frozen stage status
+
+| Stage | Status | Historical meaning |
 | --- | --- | --- |
-| 5A | `COMPLETE` | Wails GUI shell and application facade. |
-| 5B | `COMPLETE` | Input queue, batch lifecycle, and native in-window drop. |
-| 5C | `COMPLETE` | Preview service and GUI playback; real NCM/MP3 validation recorded. |
-| 5D | `IMPLEMENTATION_COMPLETE` / `REAL_MANUAL_VALIDATION_PENDING` | Windows argv launch, drag-to-EXE path delivery, and Wails single-instance handoff. |
-| 5E1 | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Offline metadata-aware decoded-output naming core and deterministic finalization. |
-| 5E2 | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | GUI naming controls, backend validation, batch mapping, preference integration, and validated source-only CUSTOM template regression fix. |
-| 5F1 | `COMPLETE` / `REAL_PASS` | Corrected source-only CUSTOM naming and validated production output/audio integrity. |
-| 5F | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes, live switching, interpolation parity fix, runtime failure containment, and validated production startup. |
-| 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
-| 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
-| 5H | `IMPLEMENTED` / `AUTOMATED_TESTED` | Format-independent metadata quality guard, field-level provenance diagnostics, and safe naming fallback. |
-| 6A | `COMPLETE` / `AUTOMATED_TESTED` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
-| 6B | `COMPLETE` / `AUTOMATED_TESTED` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
-| 6C | `COMPLETE` / `AUTOMATED_TESTED` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
-| 6D | `COMPLETE` / `AUTOMATED_TESTED` | Backend-owned native KGG database chooser, typed per-item retry, result replacement, localization, and preview continuity. |
-| 6E | `ENGINEERING_COMPLETE` | External-material architecture audit, hardening, security boundary review, and validation backlog closure. |
-| 7A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Release identity, CLI version reporting, localized GUI About information, and Windows executable metadata foundation. |
-| 7B-A | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Desktop workflow layout: responsive setup workspace, batch command surface, and unified results/summary/preview area. |
-| 7B-B | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` | Fluent visual tokens, shared status presentation, component normalization, and frontend accessibility improvements. |
-| 7C | `IMPLEMENTATION_COMPLETE` / `AUTOMATED_TESTED` / `WINDOWS_MANUAL_VALIDATION_PENDING` | Explicit persisted theme modes, native title-bar theme coordination, SVG status icons, motion/accessibility refinement, localized About dialog, and documented Mica fallback. |
+| 0 | `COMPLETE` | Repository and toolchain bootstrap. |
+| 1 | `COMPLETE` | Canonical upstream research and adapter boundary. |
+| 2 | `COMPLETE` | Content probing and format identification. |
+| 3 | `ENGINEERING_COMPLETE` | Decode pipeline and decoder integration; real-validation backlog remains. |
+| 4 | `COMPLETE` | UI-independent batch engine, bounded concurrency, progress, deterministic ordering, and collision safety. |
+| 5 | `COMPLETE` at engineering level | Desktop functional application: Wails shell, native file/folder workflow and drop, secure preview, Windows launch handoff, naming, localization, NCM container metadata, and metadata quality guard. |
+| 6 | `ENGINEERING_COMPLETE` | Typed, backend-owned, offline external-material subsystem for QMC EKeys and KGG databases, including GUI per-item retry and closure hardening. |
+| 7 | `COMPLETE` | Desktop Product Foundation through release identity, workflow layout, Fluent visual/accessibility foundation, and Windows-native theme experience. |
 
-Stage 5D accepts existing files and directories passed as process arguments,
-retains initial arguments until the frontend retrieves them, and forwards later
-launches through Wails `SingleInstanceLock`. Launches never start a batch.
-Physical Explorer drag-to-EXE acceptance remains pending unless performed on a
-real Windows installation.
+Stage 7 sub-stages retain their original meanings:
 
-Stage 5E2 automated validation is complete. The prior real CUSTOM naming
-validation failed because source-only templates were incorrectly treated as
-metadata-dependent; the fix is implemented and the corrected real output and
-audio hash are now validated.
+- 7A — Release Identity Foundation: `COMPLETE`. This is not installer
+  engineering.
+- 7B-A — Workflow Layout: `COMPLETE`.
+- 7B-B — Fluent Visual Foundation and Accessibility: `COMPLETE`.
+- 7C — Windows Native Theme Experience: `COMPLETE`. This is not a
+  library/history feature.
 
-Stage 5F had a real production white-screen failure caused by the
-`batch.itemsAdded` interpolation mismatch. The fix and production startup are
-now real-validated. Stage 5F2 playback continuity is also real-validated.
-Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.
+## Toolchain
 
-Stage 5G is `COMPLETE / REAL_PASS`; the validated naming outputs and audio hash
-are recorded in `docs/real-validation.md`.
+The known Windows validation environment is:
 
-Stage 5H validates Title, Artist, Album, and Album Artist between offline
-metadata extraction and naming. Suspicious fields are discarded independently,
-so valid sibling fields and lower-priority trusted sources remain usable. The
-guard is synthetic-tested; the reported real KGM metadata corruption has not
-been real-retested and is not marked passed.
+- Windows 11 x64
+- Go 1.26.5
+- Node.js 24.18.0
+- npm 11.16.0
+- Wails v2.15.0
+- WebView2 151.0.4129.86
+- canonical decoder module: `git.um-react.app/um/cli v0.2.19`
 
-Stage 6 remains offline and engineering-complete. Real QMC STag supplied-key
-decoding is `PENDING_EXTERNAL_MATERIAL`; KGG/KGM V5 database-backed decoding is
-also `PENDING_EXTERNAL_MATERIAL`. These are explicit validation backlog items,
-not active engineering stages.
+Go module versions are pinned in `go.mod`, and the frontend dependency graph is
+captured by `frontend/package-lock.json`. No C compiler or race-detector
+availability is claimed.
 
-Stage 6B adds a non-persistent native EKey file selection flow. Only the
-selected blocked item is retried; its stable queue index is replaced in the
-latest snapshot and summary counts are recomputed. Raw key material and the
-selected key path remain backend-only. Real supplied-key QMC validation remains
-pending.
+## Current architecture
 
-Stage 6C supplies KGM V5 with an explicit per-source KGG database capability.
-The pinned upstream helper reads the supplied database into memory, imports it
-into an in-memory SQLite database, and queries `ShareFileItems` by the KGM
-header's `AudioHash`. Database lookup is narrowly serialized around upstream
-initialization because the upstream process cache is not concurrency-safe;
-audio reads remain outside that lock. No database path or contents are
-persisted. Stage 6D adds `RetryKGGWithDatabase(batchID, itemIndex)`: the
-backend opens the native file dialog, reuses the same validation, and keeps the
-selected path out of React, DTO results, preferences, and logs. Only the
-eligible logical row is retried with its original output/naming snapshot;
-result replacement recomputes the summary. Cancellation and validation failure
-leave the original row unchanged. Real KGG/KGM V5 database-backed GUI decode
-remains `REAL_RETEST_PENDING / EXTERNAL_DATABASE_REQUIRED`.
+The desktop call path is:
 
-Stage 6 overall is `ENGINEERING_COMPLETE`. Missing real external material does
-not block the next product stage.
+```text
+React/TypeScript frontend
+    -> Wails bindings
+    -> internal/app
+    -> internal/batch
+    -> internal/decode
+```
 
-Stage 7A is limited to release identity and build foundation. The centralized
-Go identity is used by the Wails facade and all CLI tools; release builds may
-inject timestamp and commit identifier values with `-ldflags -X`. Installer,
-file-association, updater, history/library, network metadata, and decoder work
-remain outside this stage.
+The frontend owns presentation and state mapping only. Go owns filesystem
+dialogs and validation, discovery, probing, scheduling, decoding, output
+planning, metadata handling, naming, atomic finalization, preview authorization,
+and external-material selection.
 
-Stage 7B-A reorganizes only the React presentation layer. The 900px minimum
-window stacks the setup vertically; wider windows use input and destination
-columns. App lifecycle, batch events, retry eligibility, preview capability
-URLs, naming validation, DTOs, and backend behavior are unchanged. About build
-identity is removed from the permanent workspace pending a later dialog; no
-new theme system, animation, or native-window treatment is included.
+Important subsystems are:
 
-Stage 7B-B adds a semantic CSS token layer with prepared light/dark values,
-Windows-friendly typography, normalized controls and cards, and one shared
-status presentation mapping. It adds visible focus, 32px minimum button
-targets, selected filter semantics, byte-progress accessibility values, and
-accessible full-path labels while preserving all batch, retry, preview, DTO,
-and file-drop behavior. Explicit theme switching, Mica, and motion remain
-outside this phase.
+- `internal/probe` for bounded content evidence and filename candidate hints;
+- `internal/decoder/upstream` as the only canonical upstream adapter boundary;
+- `internal/audiofmt` and `internal/outputplan` for decoded-content sniffing and
+  conservative output planning;
+- `internal/audiometa`, `internal/containermeta`, and
+  `internal/metadataquality` for offline decoded/container metadata and
+  field-level quality fallback;
+- `internal/naming` plus `internal/decode` finalization for validated naming,
+  decoded-format extensions, and atomic no-replace commit;
+- `internal/externalmaterial` for request-scoped QMC EKeys and read-only KGG
+  database capabilities;
+- `PreviewService` for opaque, in-memory, loopback-only preview authorization;
+- `internal/app/launch.go` plus Wails single-instance handling for launch-path
+  queue handoff.
 
-Stage 7C promotes the prepared palette into an explicit persisted theme system
-with stable `SYSTEM`, `LIGHT`, and `DARK` values. React updates the root semantic
-tokens and asks Wails to update the native title-bar theme; system mode continues
-to follow Windows changes. Legacy lowercase preferences remain readable. Theme
-and language changes are presentation-only and do not recreate or mutate batch,
-preview, retry, queue, naming, or output state.
+## Current desktop capabilities
 
-The permanent About card remains absent. A localized modal dialog obtains the
-application name, version, build timestamp, and build identifier from
-`GetAppInfo`, whose identity comes from `internal/version`, and adds supported
-format and offline-processing information. Status presentation now uses a
-shared inline SVG icon abstraction rather than font-dependent symbols. Motion
-is limited to short presentation transitions and is disabled through
-`prefers-reduced-motion`.
+- Native multi-file, folder, and output-directory selection.
+- Recursive deterministic batch discovery with 1-8 bounded workers.
+- Native in-window file/folder drop.
+- Startup-argument and drag-to-EXE path queueing plus later-instance handoff.
+  Launch paths never auto-start decoding.
+- Explicit output destination, no silent overwrite, immutable sources, and
+  atomic output finalization.
+- Keep-source, preset, and backend-validated custom naming templates.
+- Offline decoded metadata, NCM container metadata, and the Stage 5H metadata
+  quality guard.
+- Bundled `SYSTEM`, `zh-CN`, and `en-US` localization.
+- Secure local preview using opaque capabilities rather than frontend paths.
+- Backend-only QMC EKey and KGG database selection with same-row retry.
+- Persisted `SYSTEM`, `LIGHT`, and `DARK` themes with native title-bar
+  coordination.
+- Responsive workflow layout, Fluent visual tokens, shared SVG status
+  presentation, keyboard focus, and reduced-motion handling.
+- Localized About dialog backed by centralized application/version/build
+  identity.
 
-The pinned Wails version can switch native title-bar themes and exposes DWM
-Mica as a Windows option without Windows App SDK. Mica is intentionally not
-enabled: it is limited to Windows 11 build 22621 or later and requires changing
-the window/WebView transparency composition. The opaque semantic surfaces are
-the portable fallback. Native title-bar synchronization, real system-theme
-change handling, and unsupported-Windows fallback remain manual validation
-items; no installer or additional runtime dependency was added.
+The GUI permits one active batch. Live events are transient; the final
+`BatchComplete` snapshot is authoritative, and rows correlate by stable batch
+index. Selected input rows remain distinct from recursively discovered files.
+
+## Validation distinction
+
+Implementation and automated tests do not imply real compatibility for every
+format variant. Current key real-file evidence is:
+
+- KGM V3 decode: `REAL_PASS`.
+- Stage 5H real KGM metadata-quality fallback retest: `REAL_PASS`.
+- NCM decode and metadata-aware naming: `REAL_PASS`.
+- QMC STag probing: `PROBE_REAL_PASS`; supplied-key decode is
+  `PENDING_EXTERNAL_MATERIAL`.
+- KGM V5/KGG support: `ENGINEERING_COMPLETE`; real database-backed decode is
+  `PENDING_EXTERNAL_MATERIAL`.
+- KWM, TM, Xiami, Ximalaya, and self-contained QMC variants remain
+  `REAL_PENDING`.
+
+See `docs/real-validation.md` for exact filenames, byte lengths, hashes,
+interpretation limits, and the remaining desktop manual-validation evidence.
+
+## Product boundary
+
+MusicUnlocker remains offline-first and source-preserving. It is not a streaming
+client, downloader, cloud service, mandatory transcoder, or full music-library
+manager. Network metadata, lyrics, automatic album art, telemetry, persistent
+history/library storage, mandatory updating, and similar post-v1 ideas are not
+current mainline stages.
+
+## Next work
+
+`docs/roadmap.md` is the sole current implementation roadmap. Stage 7D Premium
+Glass & Interaction Polish is the planned pre-v1 visual requirement. Stage 8A
+Installer & Portable Packaging is the first and next Windows
+release-engineering stage after that visual requirement.
