@@ -1,7 +1,8 @@
 # Metadata-aware output naming
 
 Stage 5E1 provides offline core naming. Stage 5E2 exposes the same naming
-configuration through the desktop GUI.
+configuration through the desktop GUI. Stage 5H adds a metadata quality guard
+between extraction and naming.
 
 Modes are `KEEP_SOURCE` (default), `TITLE`, `ARTIST_TITLE`, `TITLE_ARTIST`,
 `TRACK_TITLE`, `ARTIST_ALBUM_TRACK_TITLE`, and `CUSTOM`. Custom templates accept
@@ -19,6 +20,27 @@ Decoded-audio tags are read after successful decryption from the temporary
 decoded audio. The reader handles ID3v2 MP3, FLAC/Vorbis comments, Ogg/Vorbis
 comments, and common MP4/M4A atoms. Unsupported, absent, or malformed metadata
 uses the complete cleaned source stem; this does not fail decoding.
+
+Before merge, the quality guard evaluates Title, Artist, Album, and Album Artist
+independently. It rejects invalid UTF-8, U+FFFD, control characters, excessive
+non-printable content, abnormal symbol ratios, empty/whitespace-only values,
+and suspiciously low human-readable ratios. The policy works on Unicode
+character classes rather than an ASCII allowlist, preserving Chinese,
+Japanese, Korean, accented Latin text, combining marks, and punctuation and
+symbols commonly used in music titles.
+
+Each candidate retains origin provenance (embedded decoded, container, or
+filename) and provider provenance (generic, NCM, or KGM). Internal diagnostics
+contain only field, rejection reason, and provenance; they never contain the
+rejected value, encrypted material, keys, or database content. The naming
+package receives only the already validated and merged metadata.
+
+Fallback is per field. Valid decoded fields remain primary, valid container
+fields fill rejected or missing decoded fields, and the cleaned source stem is
+used as filename-derived Title when no trusted title remains. Thus a bad title
+does not discard a valid artist. If the requested template still lacks another
+required field, the existing naming fallback uses the complete cleaned source
+stem. Metadata rejection never changes decode success or decoded bytes.
 
 Generated stems replace Windows-invalid/control characters, trim trailing spaces
 and periods, protect reserved device names, preserve Unicode, and are limited to

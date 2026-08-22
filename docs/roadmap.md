@@ -107,6 +107,21 @@ Offline NCM container Title/Artist/Album metadata now fills missing decoded
 metadata for the existing naming engine. Stage 5G is `COMPLETE / REAL_PASS`;
 evidence is recorded in `docs/real-validation.md`.
 
+## Implemented: Stage 5H
+
+Add a format-independent metadata quality guard between extraction and output
+naming. The guard validates Title, Artist, Album, and Album Artist per field,
+preserves multilingual Unicode and common music-title symbols, and rejects
+invalid UTF-8, U+FFFD, controls, excessive non-printable content, abnormal
+symbol ratios, empty values, and suspiciously low human-readable ratios.
+
+Valid decoded fields remain primary. Rejected or missing fields fall through to
+validated container metadata and then filename-derived title metadata; the
+existing cleaned source stem remains the final naming fallback. Diagnostics
+retain only field, reason, and embedded/container/filename plus NCM/KGM
+provenance. Stage 5H is `IMPLEMENTED / AUTOMATED_TESTED`; real KGM validation
+remains pending.
+
 ## Completed: Stage 6A
 
 Core accepts request-scoped, per-source external QMC EKeys through an

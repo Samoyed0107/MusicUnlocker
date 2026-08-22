@@ -3,6 +3,7 @@ package decode
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"testing"
 
 	"musicunlocker/internal/externalmaterial"
+	"musicunlocker/internal/metadataquality"
+	"musicunlocker/internal/naming"
 	"musicunlocker/internal/probe"
 )
 
@@ -244,4 +247,70 @@ func TestDecodeProgressCallbackPanicDoesNotCorruptOutput(t *testing.T) {
 	if got, err := os.ReadFile(result.OutputPath); err != nil || !bytes.Equal(got, data) {
 		t.Fatalf("output=%q err=%v", got, err)
 	}
+}
+
+func TestMetadataQualityFallbackKeepsValidArtistAndOutputIdentity(t *testing.T) {
+	header := make([]byte, 64)
+	copy(header, []byte{0x7c, 0xd5, 0x32, 0xeb, 0x86, 0x02, 0x7f, 0x4b, 0xa8, 0xaf, 0xa6, 0x8e, 0x0f, 0xff, 0x99, 0x14})
+	binary.LittleEndian.PutUint32(header[0x10:], 60)
+	binary.LittleEndian.PutUint32(header[0x14:], 3)
+	binary.LittleEndian.PutUint32(header[0x18:], 1)
+	in := writeInput(t, "secret base ～君がくれたもの～.kgm", header)
+
+	data := []byte{'I', 'D', '3', 3, 0, 0, 0, 0, 0, 0}
+	frames := append(id3TextFrame("TIT2", "s_e_c_r_e_t_^�_TL0O0�0"), id3TextFrame("TPE1", "ZONE")...)
+	size := len(frames)
+	data[6], data[7], data[8], data[9] = byte(size>>21), byte(size>>14)&127, byte(size>>7)&127, byte(size)&127
+	data = append(data, frames...)
+
+	prepared, err := PrepareFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: data}, Naming: naming.Config{Mode: naming.ArtistTitle}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prepared.Naming.Stem != "ZONE - secret base ～君がくれたもの～" {
+		t.Fatalf("stem = %q", prepared.Naming.Stem)
+	}
+	if prepared.Metadata.Title != "secret base ～君がくれたもの～" || prepared.Metadata.Artist != "ZONE" {
+		t.Fatalf("metadata = %#v", prepared.Metadata)
+	}
+	found := false
+	for _, diagnostic := range prepared.MetadataDiagnostics {
+		if diagnostic.Field == metadataquality.FieldTitle && diagnostic.Reason == metadataquality.ReasonReplacement && diagnostic.Source.Origin == metadataquality.OriginEmbedded && diagnostic.Source.Provider == metadataquality.ProviderKGM {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("KGM title diagnostic absent: %#v", prepared.MetadataDiagnostics)
+	}
+	result, err := FinalizePrepared(&prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	written, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sha256.Sum256(written) != sha256.Sum256(data) {
+		t.Fatal("metadata fallback changed decoded bytes")
+	}
+}
+
+func TestMetadataQualityPreservesSourceOnlyCustomNaming(t *testing.T) {
+	in := writeInput(t, "source.kgm", []byte("encrypted"))
+	data := append([]byte("ID3"), []byte("audio")...)
+	result, err := DecodeFile(context.Background(), in, Options{OutDir: t.TempDir(), Resolver: fakeResolver{data: data}, Naming: naming.Config{Mode: naming.Custom, CustomTemplate: "{source}-TEST"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(result.OutputPath) != "source-TEST.mp3" || result.Naming.Fallback {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func id3TextFrame(id, value string) []byte {
+	payload := append([]byte{0}, []byte(value)...)
+	header := make([]byte, 10)
+	copy(header, id)
+	binary.BigEndian.PutUint32(header[4:8], uint32(len(payload)))
+	return append(header, payload...)
 }

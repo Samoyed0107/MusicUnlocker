@@ -9,6 +9,7 @@ import (
 	"musicunlocker/internal/audiometa"
 	"musicunlocker/internal/containermeta"
 	"musicunlocker/internal/externalmaterial"
+	"musicunlocker/internal/metadataquality"
 	"musicunlocker/internal/naming"
 	"musicunlocker/internal/outputplan"
 	"musicunlocker/internal/probe"
@@ -50,6 +51,7 @@ type PreparedResult struct {
 	Probe                           probe.Result
 	Metadata                        audiometa.Metadata
 	MetadataAvailable               bool
+	MetadataDiagnostics             []metadataquality.Diagnostic
 	finalized                       bool
 }
 
@@ -149,19 +151,36 @@ func PrepareFile(ctx context.Context, inputPath string, options Options) (Prepar
 		return PreparedResult{Result: r}, e
 	}
 	decodedMeta, _ := audiometa.ReadFile(name)
-	meta := audiometa.Merge(decodedMeta, containerMeta)
 	config := options.Naming
 	if config.Mode == "" {
 		config.Mode = naming.KeepSource
 	}
 	stem := outputplan.CleanStem(filepath.Base(inputPath), p)
+	provider := metadataProvider(p.Family)
+	quality := metadataquality.Resolve(
+		metadataquality.Candidate{Metadata: decodedMeta, Source: metadataquality.Source{Origin: metadataquality.OriginEmbedded, Provider: provider}},
+		metadataquality.Candidate{Metadata: containerMeta, Source: metadataquality.Source{Origin: metadataquality.OriginContainer, Provider: provider}},
+		metadataquality.Candidate{Metadata: audiometa.Metadata{Title: stem}, Source: metadataquality.Source{Origin: metadataquality.OriginFilename, Provider: provider}},
+	)
+	meta := quality.Metadata
 	nr, ne := naming.Resolve(config, stem, meta, meta.Available())
 	if ne != nil {
 		cleanup()
 		return PreparedResult{Result: r}, ne
 	}
 	r.Naming = nr
-	return PreparedResult{Result: r, TempPath: name, OutputDir: options.OutDir, SourceStem: stem, Probe: p, Metadata: meta, MetadataAvailable: meta.Available()}, nil
+	return PreparedResult{Result: r, TempPath: name, OutputDir: options.OutDir, SourceStem: stem, Probe: p, Metadata: meta, MetadataAvailable: meta.Available(), MetadataDiagnostics: quality.Diagnostics}, nil
+}
+
+func metadataProvider(family probe.Family) metadataquality.Provider {
+	switch family {
+	case probe.FamilyNetease:
+		return metadataquality.ProviderNCM
+	case probe.FamilyKugou:
+		return metadataquality.ProviderKGM
+	default:
+		return metadataquality.ProviderGeneric
+	}
 }
 func FinalizePrepared(p *PreparedResult) (Result, error) {
 	if p == nil {

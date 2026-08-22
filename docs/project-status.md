@@ -12,6 +12,7 @@
 | 5F | `FIX_IMPLEMENTED` / `AUTOMATED_TESTED` / `REAL_PASS` | Offline GUI localization with SYSTEM, zh-CN, and en-US modes, live switching, interpolation parity fix, runtime failure containment, and validated production startup. |
 | 5F2 | `COMPLETE` / `REAL_PASS` | Playback continuity across language switching and batch status badge placement. |
 | 5G | `COMPLETE` / `REAL_PASS` | Offline NCM container Title/Artist/Album integration and validated metadata-aware naming. |
+| 5H | `IMPLEMENTED` / `AUTOMATED_TESTED` | Format-independent metadata quality guard, field-level provenance diagnostics, and safe naming fallback. |
 | 6A | `COMPLETE` / `AUTOMATED_TESTED` | Request-scoped external QMC EKey provider, offline STag/MusicEx adapter path, and single-file CLI file input. |
 | 6B | `COMPLETE` / `AUTOMATED_TESTED` | Backend-only native EKey selection and per-item retry for blocked QMC rows. |
 | 6C | `COMPLETE` / `AUTOMATED_TESTED` | Application-owned KGG database provider, read-only bounded validation, KGM V5 adapter, and CLI database path. |
@@ -40,6 +41,12 @@ Supported GUI modes are `SYSTEM`, `zh-CN`, and `en-US`.
 
 Stage 5G is `COMPLETE / REAL_PASS`; the validated naming outputs and audio hash
 are recorded in `docs/real-validation.md`.
+
+Stage 5H validates Title, Artist, Album, and Album Artist between offline
+metadata extraction and naming. Suspicious fields are discarded independently,
+so valid sibling fields and lower-priority trusted sources remain usable. The
+guard is synthetic-tested; the reported real KGM metadata corruption has not
+been real-retested and is not marked passed.
 
 Stage 6 remains offline and engineering-complete. Real QMC STag supplied-key
 decoding is `PENDING_EXTERNAL_MATERIAL`; KGG/KGM V5 database-backed decoding is

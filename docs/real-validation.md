@@ -75,6 +75,19 @@ decoded bytes: 3,977,343 bytes, SHA-256
 Controlled isolated CUSTOM retests did not reproduce earlier ambiguous fallback
 observations; no confirmed product bug remains.
 
+## Stage 5H metadata quality guard
+
+- Implementation: `IMPLEMENTED`.
+- Synthetic multilingual, corruption, field-fallback, SHA-256 identity,
+  `{source}-TEST`, QMC provider, and KGG provider regressions:
+  `AUTOMATED_TESTED`.
+- Reported real KGM metadata corruption: `REAL_RETEST_PENDING`.
+
+The earlier KGM V3 decode evidence in the family table predates Stage 5H and
+does not constitute a real pass for the metadata quality guard. No real KGM
+audio or metadata was accessed during Stage 5H implementation, and Stage 5H is
+not marked real-validated.
+
 ## Stage 6B GUI retry validation status
 
 - GUI external-key retry workflow: `IMPLEMENTATION_COMPLETE / AUTOMATED_TESTED`.
