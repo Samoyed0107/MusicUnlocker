@@ -140,7 +140,7 @@ cross-version upgrade validation remain pending as
 
 ### Stage 8B — File Associations & Windows Lifecycle
 
-Status: `PLANNED`.
+Status: `ENGINEERING_COMPLETE / LOCAL_ASSOCIATION_VALIDATED`.
 
 File associations may include supported encrypted-container extensions. Launch
 safety is mandatory:
@@ -154,6 +154,21 @@ Explorer double-click
 ```
 
 An association launch must never auto-decode by itself.
+
+The Stage 8B installer registers the 49 simple encrypted-container filename
+candidates derived from the upstream adapter surface under one versioned
+`MusicUnlocker.EncryptedMusic.1` ProgID. Normal decoded-audio extensions and
+compound filename hints are excluded. Registration is per-user and uses
+`OpenWithProgids`, RegisteredApplications, and Capabilities without writing
+UserChoice or forcing a default.
+
+Local lifecycle validation passed for real KGM first-instance activation, real
+NCM existing-instance handoff, duplicate queue deduplication, Unicode and
+spaces, explicit idle/no-output safety, MusicUnlocker-owned association
+cleanup, unrelated-value retention, portable registry neutrality, and
+same-version reinstall/reactivation. This does not reclassify decoder real-file
+coverage. `CLEAN_MACHINE_ASSOCIATION_TEST_PENDING` and
+`CROSS_VERSION_UPGRADE_TEST_PENDING` remain open for Stage 8C.
 
 ### Stage 8C — Release Artifacts & Product Readiness
 

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 	"unicode"
@@ -333,5 +334,27 @@ func CandidateSuffixes(filename string) []string {
 		seen[decoder.Suffix] = struct{}{}
 		result = append(result, decoder.Suffix)
 	}
+	return result
+}
+
+// RegisteredCandidateSuffixes returns the unique filename suffixes exposed by
+// non-noop upstream decoders. Callers must still apply their own surface rules:
+// the upstream registry includes normal audio suffixes used by Xiami probing
+// and compound suffixes that Windows cannot register as filename extensions.
+func RegisteredCandidateSuffixes() []string {
+	seen := make(map[string]struct{}, len(common.DecoderRegistry))
+	for _, registered := range common.DecoderRegistry {
+		for _, candidate := range common.GetDecoder("candidate"+registered.Suffix, true) {
+			if candidate.Suffix == registered.Suffix {
+				seen[registered.Suffix] = struct{}{}
+				break
+			}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for suffix := range seen {
+		result = append(result, suffix)
+	}
+	sort.Strings(result)
 	return result
 }

@@ -19,6 +19,9 @@ claims are separately recorded in `docs/real-validation.md`.
 - Stage 8A Installer & Portable Packaging:
   `IMPLEMENTED / PORTABLE_VALIDATED / LOCAL_INSTALLER_VALIDATED`.
   Clean-machine WebView2 and cross-version upgrade validation remain pending.
+- Stage 8B Windows File Associations & Launch Lifecycle:
+  `ENGINEERING_COMPLETE / LOCAL_ASSOCIATION_VALIDATED`.
+  Clean-machine association validation remains Stage 8C work.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -54,8 +57,7 @@ The Windows x64 release workflow now derives version and product identity from
 Evergreen bootstrapper as the missing-runtime recovery path, and stages a
 per-user NSIS installer plus a portable ZIP and SHA-256 checksums. The custom
 Wails NSIS project creates a current-user Start Menu shortcut, offers an
-optional desktop shortcut, writes the uninstall entry under HKCU, and does not
-register file associations.
+optional desktop shortcut, and writes the uninstall entry under HKCU.
 
 The portable ZIP was built, inspected, extracted outside the repository,
 launched, and closed successfully on the development machine. Its executable
@@ -76,6 +78,28 @@ preferences and user music/output content. The installer requests no UAC
 elevation. `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
 `CROSS_VERSION_UPGRADE_TEST_PENDING` remain explicit; the installed WebView2
 Runtime was not removed for testing.
+
+## Stage 8B Windows file associations
+
+The per-user installer now registers one shared versioned ProgID,
+`MusicUnlocker.EncryptedMusic.1`, for the 49 simple encrypted-container
+filename candidates derived from the upstream adapter registration surface.
+Normal decoded audio extensions and compound application-level hints are
+excluded. Registration uses HKCU `OpenWithProgids`, a MusicUnlocker-owned
+Capabilities tree, and `HKCU\Software\RegisteredApplications`; it never writes
+UserChoice or replaces another handler. The Shell open command passes one
+quoted path into the existing Stage 5D startup/single-instance queue and never
+starts a batch.
+
+The production installer passed local default-path install, first-instance KGM
+Explorer activation, existing-instance NCM handoff, duplicate activation,
+Unicode/space-path, idle/no-output, registered uninstall, portable
+registry-neutral, and same-version reinstall/activation checks. Both real-file
+activations remained at `Ready` until explicit Start, the output directory was
+never created, and source hashes remained unchanged. Uninstall removed all
+MusicUnlocker-owned association data while retaining a controlled unrelated
+`OpenWithProgids` sentinel. Reinstall restored 49 unique association values.
+This Shell lifecycle check does not change decoder real-validation status.
 
 ## Toolchain
 
@@ -184,7 +208,6 @@ current mainline stages.
 
 ## Next work
 
-`docs/roadmap.md` is the sole current implementation roadmap. Stage 8A
-Installer & Portable Packaging is locally lifecycle-validated; clean-machine
-WebView2 and cross-version upgrade validation remain pending. Stage 8B remains the next planned
-implementation stage.
+`docs/roadmap.md` is the sole current implementation roadmap. Stages 8A and 8B
+are locally lifecycle-validated. Stage 8C remains next; clean-machine WebView2,
+clean-machine association, and cross-version upgrade validation remain pending.

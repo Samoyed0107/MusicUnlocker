@@ -123,6 +123,28 @@ func TestInvalidWorkers(t *testing.T) {
 	}
 }
 
+func TestLaunchActivationQueuesPathsWithoutStartingBatch(t *testing.T) {
+	engine := &fakeEngine{}
+	sink := &fakeSink{}
+	a := New(engine, sink, nil)
+
+	a.ReceiveLaunchPaths(LaunchPathsEvent{Paths: []string{`C:\音乐\Artist - 曲名.ncm`}, Source: LaunchSourceInitial})
+	pending := a.GetPendingLaunchPaths()
+	if pending == nil || len(pending.Paths) != 1 || pending.Paths[0] != `C:\音乐\Artist - 曲名.ncm` {
+		t.Fatalf("pending launch paths = %#v", pending)
+	}
+	a.ReceiveLaunchPaths(LaunchPathsEvent{Paths: []string{`C:\Music\Second Song.kgm`}, Source: LaunchSourceSecond})
+	if sink.count(EventLaunchPaths) != 1 {
+		t.Fatalf("launch event count = %d", sink.count(EventLaunchPaths))
+	}
+	engine.mu.Lock()
+	calls := engine.calls
+	engine.mu.Unlock()
+	if calls != 0 {
+		t.Fatalf("launch activation started %d batch calls", calls)
+	}
+}
+
 func TestNamingValidationExamplesAndErrors(t *testing.T) {
 	for _, tc := range []struct{ mode, template, example string }{
 		{"ARTIST_TITLE", "", "Artist - Song Title.mp3"},

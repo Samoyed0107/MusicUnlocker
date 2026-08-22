@@ -1,8 +1,9 @@
 # Windows release packaging
 
-Stage 8A provides one auditable Windows x64 workflow for the Wails v2 NSIS
-installer and portable ZIP. It does not add file associations, an updater,
-signing, CI publishing, or a portable preference mode.
+Stages 8A and 8B provide one auditable Windows x64 workflow for the Wails v2
+NSIS installer and portable ZIP, including per-user encrypted-container file
+associations. They do not add an updater, signing, CI publishing, or a portable
+preference mode.
 
 ## Toolchain and command
 
@@ -29,8 +30,10 @@ repository-local `artifacts` directory and Wails' normal `build/bin` output.
 ## Release identity and artifacts
 
 `internal/version` remains authoritative for the application name and version.
-`cmd/buildmetadata` generates both the Windows executable resource and an NSIS
-include from that identity. `cmd/releaseinfo` exposes the same identity to the
+`cmd/buildmetadata` generates the Windows executable resource, release-identity
+NSIS include, and association NSIS include. Association extensions are derived
+from the decoder adapter registration surface and filtered by
+`internal/fileassoc`. `cmd/releaseinfo` exposes the same identity to the
 PowerShell workflow. The Git commit timestamp and 12-character commit ID become
 the embedded build timestamp and build identifier, so GUI About and release
 build provenance use stable source-derived values.
@@ -70,7 +73,8 @@ The installer is current-user scoped:
 - desktop shortcut: optional installer component, off by default;
 - uninstall registration: current-user HKCU uninstall key, including
   `InstallLocation` set to the actual install directory;
-- file associations and URL protocols: none.
+- file associations: current-user encrypted-container handler registration;
+- URL protocols: none.
 
 Installing the same or a newer version targets the same executable, shortcuts,
 directory, and uninstall key, so files are replaced predictably and duplicate
@@ -79,9 +83,50 @@ reinstall validation passed with one working Start Menu shortcut.
 
 Uninstall deletes only the installed executable, packaged notices, installer
 shortcuts, uninstaller, uninstall key, and then the install directory if empty.
+It also removes only MusicUnlocker-owned ProgID, Capabilities,
+RegisteredApplications, and per-extension `OpenWithProgids` values. It never
+deletes an entire extension tree, another handler, or UserChoice.
 It does not delete source music, decoded outputs, output directories, external
 key/database material, or `%APPDATA%\MusicUnlocker\preferences.json`.
 Preferences and WebView2 user data are retained conservatively.
+
+## File associations
+
+The shared versioned ProgID is `MusicUnlocker.EncryptedMusic.1`, with the
+installed executable as its friendly icon and this quoted open command:
+
+```text
+"%LOCALAPPDATA%\Programs\MusicUnlocker\MusicUnlocker.exe" "%1"
+```
+
+The exact 49 registered extensions are:
+
+```text
+.666c6163 .6d3461 .6d7033 .6f6767 .776176
+.bkcape .bkcflac .bkcm4a .bkcmp3 .bkcogg .bkcwav .bkcwma
+.kgg .kgm .kgma .kwm
+.mflac .mflac0 .mflac1 .mflaca .mflach .mflacl .mflacm
+.mgg .mgg0 .mgg1 .mgga .mggh .mggl .mggm .mmp4
+.ncm .qmc0 .qmc2 .qmc3 .qmc4 .qmc6 .qmc8 .qmcflac .qmcogg
+.tkm .tm0 .tm2 .tm3 .tm6 .vpr .x2m .x3m .xm
+```
+
+Normal decoded formats (`.aac`, `.flac`, `.m4a`, `.mp3`, `.ogg`, `.wav`, and
+`.wma`) are excluded. Compound `.kgm.flac` and `.vpr.flac` hints remain
+application logic because Windows associates only the final extension.
+
+The installer writes under HKCU only:
+
+- `Software\Classes\MusicUnlocker.EncryptedMusic.1`;
+- each `Software\Classes\.<ext>\OpenWithProgids` value owned by MusicUnlocker;
+- `Software\MusicUnlocker\Capabilities` and its `FileAssociations` values;
+- the `MusicUnlocker` value under `Software\RegisteredApplications`.
+
+Both install and uninstall send supported `SHCNE_ASSOCCHANGED` Shell
+notifications. No UserChoice hash, competing ProgID, or default application is
+written. Explorer activation therefore passes a path into the existing Stage
+5D launch inbox and waits for explicit Start. Portable extraction and launch
+never run these installer-owned macros.
 
 ## WebView2 strategy
 
@@ -115,6 +160,7 @@ frontend sources, Node modules, development scripts, samples, external keys or
 databases, preferences, WebView2 user data, or build caches are packaged.
 Preferences keep their existing per-user Windows configuration location; the
 portable executable does not write them beside itself.
+It does not register file associations on extraction or launch.
 
 ## Current validation boundary
 
@@ -125,11 +171,18 @@ repository. With NSIS 3.12, the production installer was rebuilt and validated
 through custom-path uninstall, default-path install, installed and Start Menu
 launch, About version `0.7.0`, HKCU `InstallLocation`, same-version reinstall,
 and final registered uninstall. The installer requested no UAC elevation.
-Both uninstalls removed only MusicUnlocker-owned files, shortcuts, and HKCU
-registration; preferences and user music/output content were retained. The
-portable SHA-256 remains
-`765df502891ee6df4293af4a1ee5c37a04d7784a1462eacbca08936a628a26a4`.
+Both Stage 8A uninstalls removed only MusicUnlocker-owned files, shortcuts, and
+HKCU registration; preferences and user music/output content were retained.
+
+Stage 8B additionally passed local first-instance KGM activation,
+existing-instance NCM handoff, duplicate activation, Unicode/space paths,
+idle/no-output confirmation, conservative association uninstall, portable
+registry-neutral launch, and same-version reinstall/reactivation. Uninstall
+retained a controlled unrelated OpenWith value, and reinstall produced 49
+unique association values. No UserChoice key was created or removed, and no
+decoder real-validation status changed.
 
 `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
+`CLEAN_MACHINE_ASSOCIATION_TEST_PENDING` and
 `CROSS_VERSION_UPGRADE_TEST_PENDING` remain open. Stage 8C owns the broader
 clean-machine release-readiness matrix.

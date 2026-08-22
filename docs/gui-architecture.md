@@ -76,8 +76,10 @@ Existing files or directories passed on process startup use the same queue
 helper. Initial arguments are retained until the frontend asks for them; later
 launches arrive through Wails `SingleInstanceLock`. Paths received while a
 batch is running are deferred until authoritative completion. Startup
-arguments, Explorer drag-to-EXE, and future file associations may queue inputs,
-but they must always wait for explicit user Start.
+arguments, Explorer drag-to-EXE, and installer-owned file associations queue
+inputs through this same path, but they must always wait for explicit user
+Start. The Windows association open command is only a quoted input path; it has
+no decode-now mode and adds no parallel launch or deduplication architecture.
 
 ## Batch, progress, naming, and output
 
@@ -176,8 +178,8 @@ association, or updater support.
 ## Current boundaries
 
 There is no pause/resume, overwrite mode, source deletion, network key
-acquisition, online metadata, FFmpeg transcoding, tray integration, installer,
-file association, or automatic updater. QMC supplied-key and KGM V5/KGG
+acquisition, online metadata, FFmpeg transcoding, tray integration, or
+automatic updater. QMC supplied-key and KGM V5/KGG
 database-backed real decoding remain pending compatible external material.
 Other real-file decoder coverage is tracked in `docs/real-validation.md`.
 
