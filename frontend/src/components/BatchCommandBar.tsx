@@ -18,7 +18,6 @@ export function BatchCommandBar({
   return <section className="batch-command-surface" aria-label={t('workflow.actions')}>
     <div className="batch-command-main">
       <div className="batch-command-state">
-        <p className="section-step">3</p>
         <div>
           <h2>{t('workflow.start')}</h2>
           <span className={`pill batch-status ${running ? 'status--running' : ''}`}>{statusText}</span>

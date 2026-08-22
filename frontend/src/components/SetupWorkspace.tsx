@@ -32,7 +32,6 @@ export function SetupWorkspace({
     <section className="card setup-primary" aria-labelledby="choose-music-heading">
       <div className="section-title">
         <div>
-          <p className="section-step">1</p>
           <h2 id="choose-music-heading">{t('workflow.chooseMusic')}</h2>
         </div>
       </div>
@@ -48,7 +47,6 @@ export function SetupWorkspace({
     <section className="card setup-secondary" aria-labelledby="destination-heading">
       <div className="section-title">
         <div>
-          <p className="section-step">2</p>
           <h2 id="destination-heading">{t('workflow.destination')}</h2>
         </div>
       </div>

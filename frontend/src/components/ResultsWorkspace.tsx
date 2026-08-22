@@ -28,7 +28,6 @@ export function ResultsWorkspace({
   return <section className="card results-workspace" aria-labelledby="results-heading">
     <div className="section-title results-heading">
       <div>
-        <p className="section-step">4</p>
         <h2 id="results-heading">{t('workflow.results')}</h2>
       </div>
       <div className="filters">
@@ -40,7 +39,6 @@ export function ResultsWorkspace({
     <div className="results-summary">
       <div className="section-title">
         <div>
-          <p className="section-step">5</p>
           <h2>{t('summary.title')}</h2>
         </div>
         {complete && <button className="text-button" onClick={onOpenOutput}>{t('output.open')}</button>}
