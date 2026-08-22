@@ -158,6 +158,16 @@ presentation-only: they do not recreate the batch, selected queue, result
 snapshot, retry state, or preview element. Short transitions respect
 `prefers-reduced-motion`.
 
+Stage 7D layers semantic glass tokens over this theme contract. The application
+canvas supplies fixed, pointer-inert atmospheric gradients. Setup, command,
+results, preview, settings, and dialog surfaces use distinct translucency and
+elevation levels. Backdrop blur is restricted to the bounded set of major
+surfaces; queue and result rows remain lightweight translucent layers so live
+progress does not repaint many independent blur filters. Unsupported backdrop
+filter implementations fall back to opaque semantic surfaces, while Windows
+forced-colors mode removes decoration, blur, and shadows in favor of system
+colors and explicit borders.
+
 The localized modal About dialog obtains application name, version, build
 timestamp, and build identifier through `GetAppInfo`, backed by
 `internal/version`. Stage 7A release identity does not imply installer,
@@ -171,6 +181,6 @@ file association, or automatic updater. QMC supplied-key and KGM V5/KGG
 database-backed real decoding remain pending compatible external material.
 Other real-file decoder coverage is tracked in `docs/real-validation.md`.
 
-Native Mica is not enabled. Stage 7D requires frontend glass content surfaces
-with an opaque fallback; Mica remains an optional Windows experiment rather
-than an architectural dependency.
+Native Mica is not enabled and was not required for Stage 7D. Frontend content
+glass with an opaque fallback is the supported architecture; Mica remains an
+optional future Windows experiment rather than a dependency.

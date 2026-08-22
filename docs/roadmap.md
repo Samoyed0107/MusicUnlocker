@@ -26,7 +26,7 @@ transcoder, or full music-library manager.
 | 4 — Batch engine | `COMPLETE` | Recursive discovery, bounded concurrency, progress, deterministic results, target collision serialization, and cancellation cleanup. |
 | 5 — Desktop functional application | `COMPLETE` at engineering level | Wails shell, native workflow/drop, secure preview, launch handoff, naming, localization, NCM metadata, and metadata quality. |
 | 6 — External-material subsystem | `ENGINEERING_COMPLETE` | Typed backend-only QMC EKey and KGG database capabilities, per-item GUI retries, offline/non-persistent lifetimes, and closure hardening. |
-| 7 — Desktop Product Foundation | `COMPLETE` | Release identity, workflow layout, Fluent visual/accessibility foundation, and native theme experience. |
+| 7 — Desktop Product Foundation | `COMPLETE` | Release identity, workflow layout, Fluent visual/accessibility foundation, native themes, and premium glass polish. |
 
 ### Stage 3 validation boundary
 
@@ -80,11 +80,10 @@ surfaces remain the supported fallback.
 
 ## Stage 7D — Premium Glass & Interaction Polish
 
-Status: `PLANNED`.
+Status: `COMPLETE`.
 
-Stage 7D is an explicit pre-v1 visual requirement. It will refine the existing
-functional desktop workflow without changing core decode, batch, preview,
-retry, naming, or output semantics.
+Stage 7D completed the explicit pre-v1 visual requirement without changing core
+decode, batch, preview, retry, naming, or output semantics.
 
 Required direction:
 
@@ -95,17 +94,18 @@ Required direction:
 - refined drop-zone interaction;
 - restrained interaction motion;
 - results and preview visual polish;
-- reduced-motion accessibility.
+- reduced-motion accessibility;
+- opaque/no-backdrop-filter and forced-colors fallbacks;
+- blur limited to major surfaces, with lightweight non-blurred result rows.
 
-Glass content surfaces are required. Native Windows Mica is an optional
-experiment only and is not a prerequisite for the glass visual system. The UI
-must retain an effective opaque/fallback treatment where native composition is
-unsupported or undesirable.
+Glass content surfaces are implemented independently of the native window
+backdrop. Native Windows Mica was not attempted and is not enabled; the opaque
+Wails window remains the supported configuration.
 
 ## Stage 8 — Windows Release Engineering
 
-Stage 8 begins only after the required Stage 7D visual pass. Stage 8A is the
-first release-engineering implementation stage.
+Stage 8 follows the completed Stage 7D visual pass. Stage 8A is the first
+release-engineering implementation stage.
 
 ### Stage 8A — Installer & Portable Packaging
 

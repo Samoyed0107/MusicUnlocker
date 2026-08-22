@@ -44,7 +44,7 @@ export function AudioPreview({ item, batchId, api, onClose, onError }: { item?: 
   const close = () => { audio.current?.pause(); onClose() }
   return <div className="audio-preview" aria-label={t('preview.label')}>
     <audio ref={audio} preload="metadata" onLoadedMetadata={e => setDuration(e.currentTarget.duration)} onDurationChange={e => setDuration(e.currentTarget.duration)} onTimeUpdate={e => setCurrent(e.currentTarget.currentTime)} onEnded={() => setPlaying(false)} onError={() => { setPlaying(false); setFailed(true) }} />
-    <div className="preview-heading"><strong>{item.sourceDisplayName}</strong><button className="text-button" onClick={close} aria-label={t('preview.close')}>{t('preview.close')}</button></div>
+    <div className="preview-heading"><span className="preview-identity"><strong title={item.sourcePath}>{item.sourceDisplayName}</strong>{item.outputPath&&<small title={item.outputPath} aria-label={item.outputPath}>{item.outputPath}</small>}</span><button className="text-button" onClick={close} aria-label={t('preview.close')}>{t('preview.close')}</button></div>
     {failed ? <p className="preview-error" role="status">{t('preview.unavailable')}</p> : <div className="preview-controls"><button onClick={toggle} disabled={!url} aria-label={playing ? t('preview.pause') : t('preview.play')}>{playing ? t('preview.pause') : t('preview.play')}</button><input type="range" min="0" max={Number.isFinite(duration) ? duration : 0} step="0.1" value={Math.min(current, duration || 0)} onChange={e => { const next=Number(e.target.value); if (audio.current) audio.current.currentTime=next; setCurrent(next) }} aria-label={t('preview.seek')} disabled={!url || !duration}/><span>{formatDuration(current)} / {formatDuration(duration)}</span></div>}
   </div>
 }

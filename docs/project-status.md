@@ -7,18 +7,18 @@ claims are separately recorded in `docs/real-validation.md`.
 ## Current baseline
 
 - Branch: `master`.
-- Audited implementation HEAD: `b9934527649d1b7f0647c9a8ed8d3d828a5654af`
-  (`fix: guard naming against corrupt metadata`).
+- Stage 7D implementation baseline: `bfdfe305dc1c5ecaa77d827d19004c109cc7d8e8`
+  (`docs: reconcile project baseline and roadmap`). Stage 7D is completed by
+  the commit containing this document.
 - Product target: Windows 11 x64-first desktop utility.
 - Stage 0-7 history: frozen; do not renumber completed work.
 - Stage 5H: `IMPLEMENTED / AUTOMATED_TESTED / REAL_PASS`.
 - Stage 6: `ENGINEERING_COMPLETE`; real QMC supplied-key and KGM V5/KGG
   database-backed validation remains `PENDING_EXTERNAL_MATERIAL`.
-- Stage 7 Desktop Product Foundation: complete through Stage 7C.
+- Stage 7 Desktop Product Foundation: complete through Stage 7D.
 
-The documentation reconciliation commit following the audited implementation
-HEAD changes no production code, tests, frontend code, dependencies, or build
-configuration.
+The Stage 7D baseline reconciliation commit changes no production code, tests,
+frontend code, dependencies, or build configuration.
 
 ## Frozen stage status
 
@@ -31,7 +31,7 @@ configuration.
 | 4 | `COMPLETE` | UI-independent batch engine, bounded concurrency, progress, deterministic ordering, and collision safety. |
 | 5 | `COMPLETE` at engineering level | Desktop functional application: Wails shell, native file/folder workflow and drop, secure preview, Windows launch handoff, naming, localization, NCM container metadata, and metadata quality guard. |
 | 6 | `ENGINEERING_COMPLETE` | Typed, backend-owned, offline external-material subsystem for QMC EKeys and KGG databases, including GUI per-item retry and closure hardening. |
-| 7 | `COMPLETE` | Desktop Product Foundation through release identity, workflow layout, Fluent visual/accessibility foundation, and Windows-native theme experience. |
+| 7 | `COMPLETE` | Desktop Product Foundation through release identity, workflow layout, Fluent visual/accessibility foundation, Windows-native themes, and premium glass polish. |
 
 Stage 7 sub-stages retain their original meanings:
 
@@ -41,6 +41,8 @@ Stage 7 sub-stages retain their original meanings:
 - 7B-B — Fluent Visual Foundation and Accessibility: `COMPLETE`.
 - 7C — Windows Native Theme Experience: `COMPLETE`. This is not a
   library/history feature.
+- 7D — Premium Glass & Interaction Polish: `COMPLETE`. Content glass is the
+  supported visual system; native Mica remains disabled and optional.
 
 ## Toolchain
 
@@ -111,6 +113,9 @@ Important subsystems are:
   coordination.
 - Responsive workflow layout, Fluent visual tokens, shared SVG status
   presentation, keyboard focus, and reduced-motion handling.
+- Theme-tuned semantic glass surfaces, atmospheric canvas depth, lightweight
+  result rows, elevated preview/dialog presentation, and opaque/forced-colors
+  fallbacks. Blur is limited to major surfaces rather than per-progress row.
 - Localized About dialog backed by centralized application/version/build
   identity.
 
@@ -147,6 +152,5 @@ current mainline stages.
 ## Next work
 
 `docs/roadmap.md` is the sole current implementation roadmap. Stage 7D Premium
-Glass & Interaction Polish is the planned pre-v1 visual requirement. Stage 8A
-Installer & Portable Packaging is the first and next Windows
-release-engineering stage after that visual requirement.
+Glass & Interaction Polish is complete. Stage 8A Installer & Portable Packaging
+is the first and next Windows release-engineering stage.
