@@ -109,7 +109,7 @@ release-engineering implementation stage.
 
 ### Stage 8A — Installer & Portable Packaging
 
-Status: `IMPLEMENTED / PORTABLE_VALIDATED / INSTALLER_VALIDATION_PENDING_NSIS`.
+Status: `IMPLEMENTED / PORTABLE_VALIDATED / LOCAL_INSTALLER_VALIDATED`.
 
 Target artifacts:
 
@@ -129,10 +129,14 @@ Implemented scope:
 - deterministic ZIP entry ordering/timestamps and `SHA256SUMS` generation.
 
 The portable artifact has passed local clean-directory extraction and launch.
-The current machine lacks NSIS, so installer build, upgrade/reinstall, Start
-Menu launch, uninstall, and registry lifecycle validation remain pending.
-Clean-machine missing-WebView2 validation remains Stage 8C work and is tracked
-as `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING`.
+With NSIS 3.12, the installer passed local custom-path and default-path
+install, installed launch, Start Menu launch, same-version reinstall, HKCU
+registration, and registered-uninstall validation. The HKCU entry now writes
+`InstallLocation` explicitly and it matched the default installation path.
+No UAC elevation was requested. Clean-machine missing-WebView2 validation and
+cross-version upgrade validation remain pending as
+`CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
+`CROSS_VERSION_UPGRADE_TEST_PENDING`, respectively.
 
 ### Stage 8B — File Associations & Windows Lifecycle
 

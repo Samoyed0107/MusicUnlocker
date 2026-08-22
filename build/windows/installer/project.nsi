@@ -56,6 +56,8 @@ Section "${INFO_PRODUCTNAME} (required)" ApplicationFiles
     File /oname=THIRD_PARTY_NOTICES.txt "..\..\..\THIRD_PARTY_NOTICES.md"
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     !insertmacro wails.writeUninstaller
+    SetRegView 64
+    WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
 SectionEnd
 
 Section /o "Desktop shortcut" DesktopShortcut

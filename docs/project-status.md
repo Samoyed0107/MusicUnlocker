@@ -17,8 +17,8 @@ claims are separately recorded in `docs/real-validation.md`.
   database-backed validation remains `PENDING_EXTERNAL_MATERIAL`.
 - Stage 7 Desktop Product Foundation: complete through Stage 7D.
 - Stage 8A Installer & Portable Packaging:
-  `IMPLEMENTED / PORTABLE_VALIDATED / INSTALLER_VALIDATION_PENDING_NSIS`.
-  Clean-machine validation remains pending for Stage 8C.
+  `IMPLEMENTED / PORTABLE_VALIDATED / LOCAL_INSTALLER_VALIDATED`.
+  Clean-machine WebView2 and cross-version upgrade validation remain pending.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -63,13 +63,19 @@ reported Windows product/file version `0.7.0`/`0.7.0.0` and carried the
 `wv2runtime.embed` production build tag. No repository-relative runtime files
 were required.
 
-NSIS is not installed on the current development machine (`makensis` is not on
-PATH and Wails Doctor reports NSIS as unavailable). Therefore the installer
-artifact, upgrade/reinstall behavior, Start Menu launch, uninstall lifecycle,
-and installer metadata have not been executed locally. The release script
-fails clearly before an installer build when NSIS is absent and never installs
-tooling. `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` also remains explicit; the
-installed WebView2 Runtime was not removed for testing.
+With NSIS 3.12 available, the production installer was built and lifecycle
+validated locally. A custom-path installation and its registered uninstaller
+removed only MusicUnlocker-owned files, shortcut, and HKCU registration while
+retaining preferences and unrelated parent content. A fresh default install at
+`%LOCALAPPDATA%\Programs\MusicUnlocker` launched directly and from its Start
+Menu shortcut, reported version `0.7.0`, and wrote an HKCU `InstallLocation`
+matching the actual directory. A same-version `0.7.0` reinstall retained one
+working shortcut and correct registration; the final registered uninstall
+removed the owned installation, shortcut, and HKCU entry while retaining
+preferences and user music/output content. The installer requests no UAC
+elevation. `CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
+`CROSS_VERSION_UPGRADE_TEST_PENDING` remain explicit; the installed WebView2
+Runtime was not removed for testing.
 
 ## Toolchain
 
@@ -179,6 +185,6 @@ current mainline stages.
 ## Next work
 
 `docs/roadmap.md` is the sole current implementation roadmap. Stage 8A
-Installer & Portable Packaging is implemented, with local NSIS lifecycle and
-clean-machine validation still pending. Stage 8B remains the next planned
+Installer & Portable Packaging is locally lifecycle-validated; clean-machine
+WebView2 and cross-version upgrade validation remain pending. Stage 8B remains the next planned
 implementation stage.

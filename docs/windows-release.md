@@ -68,13 +68,14 @@ The installer is current-user scoped:
 - UAC elevation: not requested (`RequestExecutionLevel user`);
 - Start Menu: `%APPDATA%\Microsoft\Windows\Start Menu\Programs\MusicUnlocker.lnk`;
 - desktop shortcut: optional installer component, off by default;
-- uninstall registration: current-user HKCU uninstall key;
+- uninstall registration: current-user HKCU uninstall key, including
+  `InstallLocation` set to the actual install directory;
 - file associations and URL protocols: none.
 
 Installing the same or a newer version targets the same executable, shortcuts,
 directory, and uninstall key, so files are replaced predictably and duplicate
-Start Menu entries are not designed into the workflow. Local install/upgrade/
-uninstall execution remains pending until NSIS is available.
+Start Menu entries are not designed into the workflow. Local same-version
+reinstall validation passed with one working Start Menu shortcut.
 
 Uninstall deletes only the installed executable, packaged notices, installer
 shortcuts, uninstaller, uninstall key, and then the install directory if empty.
@@ -120,12 +121,15 @@ portable executable does not write them beside itself.
 On the Stage 8A development machine, the production portable build succeeded,
 its contents and executable metadata were inspected, and it launched and
 closed after extraction into a clean temporary directory outside the
-repository. Existing automated suites and build checks are recorded in
-`docs/project-status.md`.
+repository. With NSIS 3.12, the production installer was rebuilt and validated
+through custom-path uninstall, default-path install, installed and Start Menu
+launch, About version `0.7.0`, HKCU `InstallLocation`, same-version reinstall,
+and final registered uninstall. The installer requested no UAC elevation.
+Both uninstalls removed only MusicUnlocker-owned files, shortcuts, and HKCU
+registration; preferences and user music/output content were retained. The
+portable SHA-256 remains
+`765df502891ee6df4293af4a1ee5c37a04d7784a1462eacbca08936a628a26a4`.
 
-NSIS is absent, so installer creation and lifecycle checks are not marked as
-passing. A future validation run with NSIS must build the exact installer,
-install, launch from the installed location and Start Menu, inspect its HKCU
-uninstall entry and metadata, uninstall, reinstall, and confirm preferences and
-unrelated user content remain untouched. Stage 8C owns the broader clean-machine
-release-readiness matrix.
+`CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
+`CROSS_VERSION_UPGRADE_TEST_PENDING` remain open. Stage 8C owns the broader
+clean-machine release-readiness matrix.
