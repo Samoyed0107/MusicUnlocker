@@ -58,6 +58,14 @@ jobs:
         shell: pwsh
         run: git diff --check
 
+      - name: Install locked frontend dependencies
+        shell: pwsh
+        run: npm --prefix frontend ci
+
+      - name: Build frontend assets
+        shell: pwsh
+        run: npm --prefix frontend run build
+
       - name: Test and vet Go
         shell: pwsh
         run: |
@@ -66,16 +74,11 @@ jobs:
           go test ./...
           go vet ./...
 
-      - name: Install locked frontend dependencies
-        shell: pwsh
-        run: npm --prefix frontend ci
-
-      - name: Build and test frontend
+      - name: Test frontend
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
-          npm --prefix frontend run build
           npm --prefix frontend run test:i18n
           npm --prefix frontend run test:preview
           npm --prefix frontend run test:retry
