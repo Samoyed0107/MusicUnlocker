@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+      - "codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-validation:
+    runs-on: windows-2025
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go 1.26.5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up Node.js 24.18.0
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+          package-manager-cache: false
+
+      - name: Install pinned npm and Wails
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm install --global npm@11.16.0
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Record and verify toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          go version
+          node --version
+          npm --version
+          wails version
+          if ((go env GOVERSION) -ne "go1.26.5") { throw "Unexpected Go version" }
+          if ((node --version) -ne "v24.18.0") { throw "Unexpected Node.js version" }
+          if ((npm --version) -ne "11.16.0") { throw "Unexpected npm version" }
+          if ((wails version) -notmatch "v2\.15\.0") { throw "Unexpected Wails version" }
+
+      - name: Check patch whitespace
+        shell: pwsh
+        run: git diff --check
+
+      - name: Test and vet Go
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          go test ./...
+          go vet ./...
+
+      - name: Install locked frontend dependencies
+        shell: pwsh
+        run: npm --prefix frontend ci
+
+      - name: Build and test frontend
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm --prefix frontend run build
+          npm --prefix frontend run test:i18n
+          npm --prefix frontend run test:preview
+          npm --prefix frontend run test:retry
+          npm --prefix frontend run test:theme-about
+
+      - name: Smoke-test Windows production build
+        shell: pwsh
+        run: wails build

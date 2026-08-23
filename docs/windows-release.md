@@ -1,10 +1,10 @@
 # Windows release packaging
 
-Stages 8A through 8C provide one auditable Windows x64 workflow for the Wails
+Stages 8A through 8D provide one auditable Windows x64 workflow for the Wails
 v2 NSIS installer, actual single-file Wails executable, and portable ZIP,
 including per-user encrypted-container file associations owned only by the
-installer. They do not add an updater, signing, CI publishing, or a portable
-preference mode.
+installer. They do not add an updater, public automatic publication, signing,
+or a portable preference mode.
 
 ## Toolchain and command
 
@@ -27,6 +27,48 @@ be built explicitly:
 `-AllowDirty` exists only for pre-commit engineering validation. Normal release
 builds reject a dirty worktree. The script recreates only its resolved
 repository-local `artifacts` directory and Wails' normal `build/bin` output.
+
+## GitHub Actions automation
+
+`.github/workflows/ci.yml` runs on pull requests, manual dispatch, and pushes
+to `main`, `develop`, and `codex/**`. It grants only `contents: read`, cancels
+superseded runs for the same branch/ref, and has a 45-minute timeout. On the
+explicit `windows-2025` x64 image it runs `git diff --check`, `go test ./...`,
+`go vet ./...`, locked frontend install/build/smoke tests, and `wails build`.
+Go module/build and npm package-download caches are permitted; correctness does
+not depend on a hit, and neither `node_modules` nor product outputs are cached.
+
+`.github/workflows/windows-release.yml` is `workflow_dispatch` only and does
+not cancel a running build for the same ref/tag. Without a tag it checks out
+the repository default branch and only uploads a workflow artifact. With a tag
+it checks out that existing ref and requires the exact convention
+`v<internal/version>`, such as `v0.7.0`; source version constants are never
+rewritten from the tag. A missing version-derived RC note is fatal.
+
+The release build uses no build caches and bootstraps Go 1.26.5, Node.js
+24.18.0, npm 11.16.0, Wails v2.15.0, and Chocolatey's exact NSIS 3.12.0 package
+on `windows-2025`. All external official Actions are fixed to full release
+commit SHAs. The job calls this document's authoritative release script rather
+than reproducing packaging in YAML, then `scripts/verify-windows-release.ps1`
+independently enforces the six-file allowlist, parses all five manifest lines,
+recomputes every SHA-256, and rejects missing, duplicate, malformed, or
+unexpected entries. Only that verified directory is uploaded as
+`MusicUnlocker-<version>-windows-release` for 30 days.
+
+The build job is read-only with respect to repository contents. Draft Release
+creation is a second, opt-in job with only `contents: write`; it downloads and
+re-verifies the workflow artifact, requires the existing matching tag, uses
+`docs/releases/<version>-rc.md`, refuses to alter a published release or delete
+unexpected assets, and creates/updates a draft with GitHub CLI. It never
+publishes, creates, or moves a tag. Fork pull requests can run only the
+unprivileged CI workflow and cannot reach this manual release path.
+
+Provenance attestation for the Setup EXE, standalone EXE, and portable ZIP is
+available as a separate opt-in using the official `actions/attest` action.
+Repository/account support is not known without a configured remote, so the
+default is off and the current status is `ARTIFACT_ATTESTATION_PENDING`.
+GitHub provenance attestation is not Authenticode and is not a Windows
+publisher code signature.
 
 ## Release identity and artifacts
 
@@ -56,6 +98,12 @@ after their final form is staged. Checksums detect transfer corruption; they
 do not authenticate the publisher and are not a substitute for code signing.
 Current RC binaries report `NotSigned`, recorded as
 `UNSIGNED_RELEASE_ARTIFACTS`.
+
+The signing boundary is `CODE_SIGNING_NOT_CONFIGURED`. No PFX, password,
+certificate, Azure credential, or SignTool secret is stored or consumed. A
+future signing integration must change ordering to: build, sign EXEs, verify
+signatures, regenerate final `SHA256SUMS`, then upload and publish. Hashing the
+current unsigned final files before upload remains correct for Stage 8D.
 
 The ZIP writer sorts paths and applies the source commit timestamp to every
 entry. Dependency versions are pinned, and Wails builds with `-trimpath`.
@@ -237,3 +285,14 @@ remains. No authentic older installer was available, so
 `CROSS_VERSION_UPGRADE_TEST_PENDING` remains. No real KGM/NCM samples were
 available for a release-artifact decode/Preview smoke; decoder evidence in
 `docs/real-validation.md` is unchanged.
+
+The workflows have not been pushed or executed remotely in Stage 8D, so
+`DRAFT_RELEASE_REMOTE_TEST_PENDING` remains and neither
+`CLEAN_GITHUB_RUNNER_BUILD_PASS` nor `GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` is
+claimed. A successful `windows-2025` run will prove a fresh hosted VM, clean
+checkout, workflow-bootstrapped toolchain, and production artifact build. It
+will not be equivalent to an interactive Windows 11 consumer desktop and will
+not validate Explorer integration, DPI/snap behavior, WebView2 GUI lifecycle,
+consumer UAC behavior, or SmartScreen reputation. Consequently
+`CLEAN_MACHINE_CORE_TEST_PENDING` and
+`SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING` remain unchanged.

@@ -41,6 +41,21 @@ Windows release packaging instructions, including the NSIS prerequisite,
 portable ZIP, WebView2 strategy, and checksum workflow, are in
 [`docs/windows-release.md`](docs/windows-release.md).
 
+## Continuous integration and release candidates
+
+Pull requests and pushes to the maintained development branches run the
+Windows CI workflow: Go tests and vet, the locked frontend build and smoke
+tests, and a production Wails build. The separate Windows Release Candidate
+workflow is manual. It builds the authoritative six-file release directory on
+`windows-2025`, verifies its exact allowlist and `SHA256SUMS`, and uploads a
+30-day workflow artifact.
+
+Draft GitHub Release creation is an explicit manual option and requires an
+already existing `v<product-version>` tag. The workflow never publishes a
+release, creates or moves a tag, or signs binaries. See
+[`docs/windows-release.md`](docs/windows-release.md) for invocation, permission,
+attestation, signing, and clean-runner evidence boundaries.
+
 ## Windows distribution options
 
 The `0.7.0` release-candidate workflow produces three Windows x64 application

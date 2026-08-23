@@ -194,15 +194,29 @@ matrix items, and real KGM/NCM release smoke remain explicit pending evidence.
 
 ### Stage 8D — CI / Release Automation
 
-Status: `PLANNED`.
+Status: `ENGINEERING_COMPLETE / CI_AUTOMATED / RELEASE_BUILD_AUTOMATED`.
 
-Potential later scope:
+Completed engineering scope:
 
-- tagged builds;
-- reproducible artifact generation;
-- GitHub Release automation.
+- read-only PR/push CI with pinned Go, Node/npm, Wails, and immutable official
+  Action revisions;
+- manual clean `windows-2025` release-candidate builds through the existing
+  authoritative PowerShell packaging script and exact NSIS 3.12.0;
+- independent six-file allowlist and checksum-manifest verification followed
+  by a deterministic, 30-day workflow artifact upload;
+- optional existing-tag validation, opt-in provenance attestation, and a
+  separately permissioned Draft Release job that never publishes or creates a
+  tag.
 
-Code signing is `NOT_DECIDED`. An automatic updater is `DEFERRED`.
+Remote execution is not yet evidence-backed:
+`DRAFT_RELEASE_REMOTE_TEST_PENDING`, `ARTIFACT_ATTESTATION_PENDING`, and no
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` claim. A successful GitHub-hosted build
+will prove fresh checkout/toolchain bootstrap and release construction on a
+fresh Windows Server VM, not interactive Windows 11 installer, Explorer,
+WebView2 lifecycle, DPI/snap, UAC, or SmartScreen behavior.
+
+Code signing is `CODE_SIGNING_NOT_CONFIGURED`; current outputs remain
+`UNSIGNED_RELEASE_ARTIFACTS`. An automatic updater is `DEFERRED`.
 
 ## Deferred or post-v1
 

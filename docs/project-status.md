@@ -27,6 +27,10 @@ claims are separately recorded in `docs/real-validation.md`.
   `ENGINEERING_COMPLETE / RELEASE_CANDIDATE_LOCAL_VALIDATED / STANDALONE_EXE_VALIDATED`.
   No clean-machine, signing, SmartScreen-download, missing-WebView2, or
   cross-version-upgrade claim is made.
+- Stage 8D CI and Windows Release Automation:
+  `ENGINEERING_COMPLETE / CI_AUTOMATED / RELEASE_BUILD_AUTOMATED`.
+  GitHub-hosted execution, Draft Release mutation, and provenance attestation
+  remain untested pending a configured remote and explicit authorization.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -169,6 +173,40 @@ Go module versions are pinned in `go.mod`, and the frontend dependency graph is
 captured by `frontend/package-lock.json`. No C compiler or race-detector
 availability is claimed.
 
+## Stage 8D automation
+
+CI and privileged release operations are structurally separate. `.github/workflows/ci.yml`
+has read-only repository permission and runs on pull requests, manual dispatch,
+and pushes to `main`, `develop`, and `codex/**`. It installs Go 1.26.5,
+Node.js 24.18.0, npm 11.16.0, and Wails v2.15.0 exactly, uses `npm ci`, runs the
+established Go/frontend checks, and smoke-builds the Windows production app.
+
+`.github/workflows/windows-release.yml` is manual-only and defaults to an
+artifact-only build from the default branch. An optional tag input checks out
+an already existing tag and must equal `v` plus the authoritative
+`internal/version` value. The build job uses `windows-2025`, installs exact
+NSIS 3.12.0, calls `scripts/build-windows-release.ps1`, independently verifies
+the exact six-file directory and every `SHA256SUMS` entry, then uploads only
+that directory for 30 days. It has no repository-content write permission.
+
+Draft Release creation is a separate conditional job with `contents: write`.
+It re-downloads and re-verifies the workflow artifact, refuses non-draft
+releases or drafts with unexpected assets, uses the checked-in RC note, and
+only creates or updates a draft for an existing verified tag. Publication is
+always human-controlled. Optional GitHub provenance attestation is wired for
+the installer, standalone EXE, and portable ZIP, but is off by default because
+repository visibility and account support could not be established locally:
+`ARTIFACT_ATTESTATION_PENDING`. GitHub provenance attestation is not a Windows
+publisher code signature.
+
+The current boundary remains `CODE_SIGNING_NOT_CONFIGURED` and
+`UNSIGNED_RELEASE_ARTIFACTS`. Future signing must occur after build but before
+final hashing: build, sign EXEs, verify signatures, regenerate final
+`SHA256SUMS`, then upload/publish. No credentials or signing implementation are
+present. `DRAFT_RELEASE_REMOTE_TEST_PENDING` and GitHub-hosted workflow
+execution remain pending; therefore no `CLEAN_GITHUB_RUNNER_BUILD_PASS` or
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` claim is made.
+
 ## Current architecture
 
 The desktop call path is:
@@ -260,8 +298,7 @@ current mainline stages.
 
 ## Next work
 
-`docs/roadmap.md` is the sole current implementation roadmap. Stage 8C
-engineering and local RC validation are complete. Stage 8D is next only after
-explicit authorization; the clean-machine, missing-WebView2, SmartScreen,
-cross-version-upgrade, Stage 7D environment, and real release-smoke evidence
-listed above remain pending.
+`docs/roadmap.md` is the sole current implementation roadmap. Stage 8D
+engineering is complete locally. Remote CI/release-workflow execution and the
+clean-machine, missing-WebView2, SmartScreen, cross-version-upgrade, Stage 7D
+environment, and real release-smoke evidence listed above remain pending.
