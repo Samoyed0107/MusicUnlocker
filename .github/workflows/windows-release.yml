@@ -77,19 +77,7 @@ jobs:
 
       - name: Record and verify toolchain
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $PSNativeCommandUseErrorActionPreference = $true
-          go version
-          node --version
-          npm --version
-          wails version
-          makensis /VERSION
-          if ((go env GOVERSION) -ne "go1.26.5") { throw "Unexpected Go version" }
-          if ((node --version) -ne "v24.18.0") { throw "Unexpected Node.js version" }
-          if ((npm --version) -ne "11.16.0") { throw "Unexpected npm version" }
-          if ((wails version) -notmatch "v2\.15\.0") { throw "Unexpected Wails version" }
-          if ((makensis /VERSION) -notmatch "v3\.12") { throw "Unexpected NSIS version" }
+        run: ./scripts/verify-windows-toolchain.ps1 -RequireNSIS
 
       - name: Validate invocation and release identity
         id: context
