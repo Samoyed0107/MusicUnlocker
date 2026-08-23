@@ -208,12 +208,19 @@ Completed engineering scope:
   separately permissioned Draft Release job that never publishes or creates a
   tag.
 
-Remote execution is not yet evidence-backed:
-`DRAFT_RELEASE_REMOTE_TEST_PENDING`, `ARTIFACT_ATTESTATION_PENDING`, and no
-`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` claim. A successful GitHub-hosted build
-will prove fresh checkout/toolchain bootstrap and release construction on a
-fresh Windows Server VM, not interactive Windows 11 installer, Explorer,
-WebView2 lifecycle, DPI/snap, UAC, or SmartScreen behavior.
+Remote validation is complete for the current automation boundary:
+`REMOTE_CI_VALIDATED`, `CLEAN_GITHUB_RUNNER_CI_PASS`, `MASTER_CI_PASS`,
+`CLEAN_GITHUB_RUNNER_BUILD_PASS`, and
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. Feature-branch CI and master CI both
+passed at commit `59b49f0`, and a manual artifact-only `windows-2025` release
+run passed with the six-file artifact uploaded and its downloaded manifest
+hashes independently verified. This proves fresh checkout/toolchain bootstrap
+and release construction on a hosted Windows Server VM, not interactive
+Windows 11 installer, Explorer, WebView2 lifecycle, DPI/snap, UAC, or
+SmartScreen behavior.
+
+`DRAFT_RELEASE_REMOTE_TEST_PENDING` and `ARTIFACT_ATTESTATION_PENDING` remain
+because both options were intentionally disabled.
 
 Code signing is `CODE_SIGNING_NOT_CONFIGURED`; current outputs remain
 `UNSIGNED_RELEASE_ARTIFACTS`. An automatic updater is `DEFERRED`.

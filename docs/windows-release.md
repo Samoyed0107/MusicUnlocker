@@ -31,7 +31,7 @@ repository-local `artifacts` directory and Wails' normal `build/bin` output.
 ## GitHub Actions automation
 
 `.github/workflows/ci.yml` runs on pull requests, manual dispatch, and pushes
-to `main`, `develop`, and `codex/**`. It grants only `contents: read`, cancels
+to `master`, `main`, `develop`, and `codex/**`. It grants only `contents: read`, cancels
 superseded runs for the same branch/ref, and has a 45-minute timeout. On the
 explicit `windows-2025` x64 image it runs `git diff --check`, `go test ./...`,
 `go vet ./...`, locked frontend install/build/smoke tests, and `wails build`.
@@ -69,9 +69,9 @@ publishes, creates, or moves a tag. Fork pull requests can run only the
 unprivileged CI workflow and cannot reach this manual release path.
 
 Provenance attestation for the Setup EXE, standalone EXE, and portable ZIP is
-available as a separate opt-in using the official `actions/attest` action.
-Repository/account support is not known without a configured remote, so the
-default is off and the current status is `ARTIFACT_ATTESTATION_PENDING`.
+available as a separate opt-in using the official `actions/attest` action. It
+was intentionally disabled for the completed artifact-only validation, so the
+current status remains `ARTIFACT_ATTESTATION_PENDING`.
 GitHub provenance attestation is not Authenticode and is not a Windows
 publisher code signature.
 
@@ -291,13 +291,26 @@ remains. No authentic older installer was available, so
 available for a release-artifact decode/Preview smoke; decoder evidence in
 `docs/real-validation.md` is unchanged.
 
-The workflows have not been pushed or executed remotely in Stage 8D, so
-`DRAFT_RELEASE_REMOTE_TEST_PENDING` remains and neither
-`CLEAN_GITHUB_RUNNER_BUILD_PASS` nor `GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` is
-claimed. A successful `windows-2025` run will prove a fresh hosted VM, clean
-checkout, workflow-bootstrapped toolchain, and production artifact build. It
-will not be equivalent to an interactive Windows 11 consumer desktop and will
-not validate Explorer integration, DPI/snap behavior, WebView2 GUI lifecycle,
-consumer UAC behavior, or SmartScreen reputation. Consequently
-`CLEAN_MACHINE_CORE_TEST_PENDING` and
-`SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING` remain unchanged.
+Stage 8D remote validation is recorded:
+
+- feature-branch CI passed for `codex/stage-8c-v2` at `59b49f0`;
+- master CI passed for `master` at `59b49f0`;
+- manual artifact-only release validation passed on a fresh `windows-2025`
+  runner and uploaded `MusicUnlocker-0.7.0-windows-release`;
+- the downloaded artifact's five `SHA256SUMS` entries were independently
+  recomputed and matched exactly.
+
+This establishes `REMOTE_CI_VALIDATED`, `CLEAN_GITHUB_RUNNER_CI_PASS`,
+`MASTER_CI_PASS`, `CLEAN_GITHUB_RUNNER_BUILD_PASS`, and
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. The downloaded artifact hashes are
+commit-specific remote evidence and are not expected to match the earlier
+Stage 8C local build.
+
+The hosted runner proves a fresh checkout, workflow-bootstrapped toolchain, and
+production artifact construction. It is not an interactive Windows 11
+consumer environment and does not validate Explorer integration, DPI/snap,
+WebView2 GUI lifecycle, consumer UAC behavior, or SmartScreen reputation.
+`DRAFT_RELEASE_REMOTE_TEST_PENDING`, `CLEAN_MACHINE_CORE_TEST_PENDING`,
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`,
+`SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING`, and
+`CROSS_VERSION_UPGRADE_TEST_PENDING` remain unchanged.

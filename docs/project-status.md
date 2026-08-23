@@ -28,9 +28,11 @@ claims are separately recorded in `docs/real-validation.md`.
   No clean-machine, signing, SmartScreen-download, missing-WebView2, or
   cross-version-upgrade claim is made.
 - Stage 8D CI and Windows Release Automation:
-  `ENGINEERING_COMPLETE / CI_AUTOMATED / RELEASE_BUILD_AUTOMATED`.
-  GitHub-hosted execution, Draft Release mutation, and provenance attestation
-  remain untested pending a configured remote and explicit authorization.
+  `ENGINEERING_COMPLETE / CI_AUTOMATED / RELEASE_BUILD_AUTOMATED /
+  REMOTE_CI_VALIDATED / GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`.
+  Feature-branch CI, master CI, and a manual artifact-only Windows release
+  runner build have passed. Draft Release mutation and provenance attestation
+  remain intentionally untested.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -177,7 +179,7 @@ availability is claimed.
 
 CI and privileged release operations are structurally separate. `.github/workflows/ci.yml`
 has read-only repository permission and runs on pull requests, manual dispatch,
-and pushes to `main`, `develop`, and `codex/**`. It installs Go 1.26.5,
+and pushes to `master`, `main`, `develop`, and `codex/**`. It installs Go 1.26.5,
 Node.js 24.18.0, npm 11.16.0, and Wails v2.15.0 exactly, uses `npm ci`, runs the
 established Go/frontend checks, and smoke-builds the Windows production app.
 
@@ -199,13 +201,37 @@ repository visibility and account support could not be established locally:
 `ARTIFACT_ATTESTATION_PENDING`. GitHub provenance attestation is not a Windows
 publisher code signature.
 
-The current boundary remains `CODE_SIGNING_NOT_CONFIGURED` and
-`UNSIGNED_RELEASE_ARTIFACTS`. Future signing must occur after build but before
-final hashing: build, sign EXEs, verify signatures, regenerate final
-`SHA256SUMS`, then upload/publish. No credentials or signing implementation are
-present. `DRAFT_RELEASE_REMOTE_TEST_PENDING` and GitHub-hosted workflow
-execution remain pending; therefore no `CLEAN_GITHUB_RUNNER_BUILD_PASS` or
-`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED` claim is made.
+Remote validation evidence is now recorded:
+
+- feature branch `codex/stage-8c-v2` at `59b49f0` passed CI;
+- primary branch `master` at `59b49f0` passed CI;
+- the manual artifact-only `windows-2025` release workflow passed from a fresh
+  GitHub runner and uploaded `MusicUnlocker-0.7.0-windows-release`;
+- the downloaded artifact's five `SHA256SUMS` entries were independently
+  recomputed and all matched after download.
+
+This justifies `REMOTE_CI_VALIDATED`, `CLEAN_GITHUB_RUNNER_CI_PASS`,
+`MASTER_CI_PASS`, `CLEAN_GITHUB_RUNNER_BUILD_PASS`, and
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. It does not justify
+`CLEAN_MACHINE_CORE_VALIDATED`: the hosted runner is not interactive consumer
+Windows validation. `DRAFT_RELEASE_REMOTE_TEST_PENDING` and
+`ARTIFACT_ATTESTATION_PENDING` remain. The current boundary also remains
+`CODE_SIGNING_NOT_CONFIGURED` and `UNSIGNED_RELEASE_ARTIFACTS`. Future signing
+must occur after build but before final hashing: build, sign EXEs, verify
+signatures, regenerate final `SHA256SUMS`, then upload/publish.
+
+Downloaded artifact manifest evidence:
+
+```text
+ca0823e35b5de5df2dc468132a1273dfd07aceb1d7df86a341f57e895b577650  LICENSE.txt
+2402b4306e15f2cabab781d0f43554beda7ead1628c247fef8b4e23972766f27  MusicUnlocker-0.7.0-win64-portable.zip
+4b6e6382dee8b9b851c13e5db7c89bbd4b13ccae4b2d7ecb3fc5cc555470ee38  MusicUnlocker-0.7.0-win64.exe
+31ee92ac5f8cb2039819f56a0519fa553abe8b8c8c25c1562671ca733879ca25  MusicUnlocker-Setup-0.7.0-win64.exe
+3e450b04a1b0110fe3f204542ea97c20b6f3ce42762bcd09253062d2f325b71f  THIRD_PARTY_NOTICES.txt
+```
+
+These hashes belong to the remote workflow artifact at this commit and are
+not expected to match the earlier Stage 8C local build.
 
 ## Current architecture
 
