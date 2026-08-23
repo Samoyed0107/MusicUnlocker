@@ -45,6 +45,11 @@ it checks out that existing ref and requires the exact convention
 `v<internal/version>`, such as `v0.7.0`; source version constants are never
 rewritten from the tag. A missing version-derived RC note is fatal.
 
+GitHub enables `workflow_dispatch` only after the workflow exists on the
+repository default branch. Merge the Stage 8D workflows into that branch
+before the first manual Windows release run; pushing only the feature branch
+is not sufficient for final manual-workflow validation.
+
 The release build uses no build caches and bootstraps Go 1.26.5, Node.js
 24.18.0, npm 11.16.0, Wails v2.15.0, and Chocolatey's exact NSIS 3.12.0 package
 on `windows-2025`. All external official Actions are fixed to full release
