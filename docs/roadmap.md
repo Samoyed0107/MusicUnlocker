@@ -172,17 +172,25 @@ coverage. `CLEAN_MACHINE_ASSOCIATION_TEST_PENDING` and
 
 ### Stage 8C — Release Artifacts & Product Readiness
 
-Status: `PLANNED`.
+Status: `ENGINEERING_COMPLETE / RELEASE_CANDIDATE_LOCAL_VALIDATED / STANDALONE_EXE_VALIDATED`.
 
-Required release-readiness work includes:
+Completed engineering scope:
 
-- installer lifecycle testing;
-- portable-package testing;
-- clean-machine validation;
-- `SHA256SUMS`;
-- release notes;
-- NOTICE and dependency licenses;
-- Explorer launch and drag-to-EXE checks.
+- one production Wails build now yields the per-user installer, the actual
+  single-file Wails executable, and the documented portable ZIP;
+- the final release directory uses an exact six-file allowlist and normalized,
+  deterministic `SHA256SUMS` entries;
+- top-level Scheme A license and third-party notice assets accompany the
+  standalone executable, and the portable/installer notice layouts remain;
+- local installer, association activation, standalone Unicode/space-path
+  direct launch, standalone argument queueing/idle behavior, registry
+  neutrality, portable extraction/launch, version resources, and unsigned
+  Authenticode state were validated.
+
+This host is a development machine, not a clean environment. Actual
+clean-machine core testing, missing-WebView2 recovery, public-download
+SmartScreen behavior, cross-version upgrade, remaining Stage 7D environment
+matrix items, and real KGM/NCM release smoke remain explicit pending evidence.
 
 ### Stage 8D — CI / Release Automation
 

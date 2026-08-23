@@ -1,12 +1,13 @@
 # Project status
 
-This is the fresh-session handoff for the current MusicUnlocker mainline.
+This is the fresh-session handoff for the current MusicUnlocker release-candidate branch.
 Implementation claims below are based on source and commit history; real-file
 claims are separately recorded in `docs/real-validation.md`.
 
 ## Current baseline
 
-- Branch: `master`.
+- Branch: `codex/stage-8c-v2` during implementation; integrate by commit rather
+  than treating the branch name as product identity.
 - Stage 8A implementation predecessor: `ca740d377a14555b35bb9e766c7eff1bfd1edcf6`
   (`feat: add premium glass desktop polish`). Stage 8A is implemented by the
   commit containing this document.
@@ -22,6 +23,10 @@ claims are separately recorded in `docs/real-validation.md`.
 - Stage 8B Windows File Associations & Launch Lifecycle:
   `ENGINEERING_COMPLETE / LOCAL_ASSOCIATION_VALIDATED`.
   Clean-machine association validation remains Stage 8C work.
+- Stage 8C Release Candidate, Standalone EXE & Product Readiness:
+  `ENGINEERING_COMPLETE / RELEASE_CANDIDATE_LOCAL_VALIDATED / STANDALONE_EXE_VALIDATED`.
+  No clean-machine, signing, SmartScreen-download, missing-WebView2, or
+  cross-version-upgrade claim is made.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -100,6 +105,53 @@ never created, and source hashes remained unchanged. Uninstall removed all
 MusicUnlocker-owned association data while retaining a controlled unrelated
 `OpenWithProgids` sentinel. Reinstall restored 49 unique association values.
 This Shell lifecycle check does not change decoder real-validation status.
+
+## Stage 8C release candidate
+
+The existing Windows release script now stages six public assets in one run:
+the per-user installer, the actual production Wails executable under a
+versioned standalone filename, the complete portable ZIP, top-level Scheme A
+license and third-party notice files, and `SHA256SUMS`. The script preserves
+the existing `windows/amd64`, `-trimpath`, `-webview2 embed`, user-scope NSIS,
+and source-derived build identity path. It enforces an exact final artifact
+allowlist before and after checksum generation.
+
+Local RC validation used only the standalone EXE in an unrelated temporary
+directory whose path contained spaces and Japanese characters. It launched,
+rendered the frontend and icon, exposed About version `0.7.0`, and exited
+cleanly without adjacent runtime files. A separate argument launch queued one
+existing synthetic `.ncm` path through the normal Stage 5D inbox, remained
+`Ready`, and created no output directory. After the installed build had been
+uninstalled, standalone launch left the MusicUnlocker uninstall key, ProgID,
+Capabilities, RegisteredApplications entry, sampled UserChoice keys, and all
+installer-owned state absent.
+
+The RC installer installed per-user without elevation, created its Start Menu
+shortcut and `0.7.0` uninstall identity, registered 49 encrypted candidates,
+queued a Unicode/space launch argument without auto-starting, and uninstalled
+its owned files and registration. The portable ZIP retained its four-file
+versioned layout and launched from a separate Unicode/space path with no
+installer-owned registry state. Installer, standalone, portable, and installed
+executables shared version `0.7.0`; the three application executables shared
+identical production bytes. All inspected executables were `NotSigned`, so
+`UNSIGNED_RELEASE_ARTIFACTS` remains explicit.
+
+The development host had WebView2 Runtime `151.0.4129.101`, yielding
+`DEVELOPMENT_HOST_WEBVIEW2_PRESENT_PASS`; it is not a clean-machine claim.
+`CLEAN_MACHINE_CORE_TEST_PENDING`,
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`,
+`CROSS_VERSION_UPGRADE_TEST_PENDING`, and
+`SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING` remain open. No authentic real KGM
+or NCM sample was available on this host for a release-artifact decode/Preview
+smoke, so that regression remains pending without changing
+`docs/real-validation.md`.
+
+The RC UI was observed at approximately 1100x760 and maximized, in explicit
+Light and Dark themes, with `zh-CN`, a long Unicode/space input path, and
+keyboard-accessible controls. The 900x600, snapped, live system-theme,
+100/125/150 percent scaling, `en-US` RC-binary, exhaustive focus, long-name
+stress, and real Preview-continuity checks remain pending rather than inferred
+from automated frontend smoke tests or older evidence.
 
 ## Toolchain
 
@@ -208,6 +260,8 @@ current mainline stages.
 
 ## Next work
 
-`docs/roadmap.md` is the sole current implementation roadmap. Stages 8A and 8B
-are locally lifecycle-validated. Stage 8C remains next; clean-machine WebView2,
-clean-machine association, and cross-version upgrade validation remain pending.
+`docs/roadmap.md` is the sole current implementation roadmap. Stage 8C
+engineering and local RC validation are complete. Stage 8D is next only after
+explicit authorization; the clean-machine, missing-WebView2, SmartScreen,
+cross-version-upgrade, Stage 7D environment, and real release-smoke evidence
+listed above remain pending.

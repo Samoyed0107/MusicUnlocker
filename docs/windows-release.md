@@ -1,8 +1,9 @@
 # Windows release packaging
 
-Stages 8A and 8B provide one auditable Windows x64 workflow for the Wails v2
-NSIS installer and portable ZIP, including per-user encrypted-container file
-associations. They do not add an updater, signing, CI publishing, or a portable
+Stages 8A through 8C provide one auditable Windows x64 workflow for the Wails
+v2 NSIS installer, actual single-file Wails executable, and portable ZIP,
+including per-user encrypted-container file associations owned only by the
+installer. They do not add an updater, signing, CI publishing, or a portable
 preference mode.
 
 ## Toolchain and command
@@ -42,14 +43,19 @@ For version `0.7.0`, the default output directory contains:
 
 ```text
 MusicUnlocker-Setup-0.7.0-win64.exe
+MusicUnlocker-0.7.0-win64.exe
 MusicUnlocker-0.7.0-win64-portable.zip
+LICENSE.txt
+THIRD_PARTY_NOTICES.txt
 SHA256SUMS
 ```
 
 `SHA256SUMS` uses lowercase SHA-256 followed by two spaces and the artifact
-filename. Checksums detect transfer corruption; they do not authenticate the
-publisher and are not a substitute for code signing. Code signing remains
-`NOT_DECIDED`.
+filename. The Stage 8C workflow hashes all five non-manifest release assets
+after their final form is staged. Checksums detect transfer corruption; they
+do not authenticate the publisher and are not a substitute for code signing.
+Current RC binaries report `NotSigned`, recorded as
+`UNSIGNED_RELEASE_ARTIFACTS`.
 
 The ZIP writer sorts paths and applies the source commit timestamp to every
 entry. Dependency versions are pinned, and Wails builds with `-trimpath`.
@@ -89,6 +95,21 @@ deletes an entire extension tree, another handler, or UserChoice.
 It does not delete source music, decoded outputs, output directories, external
 key/database material, or `%APPDATA%\MusicUnlocker\preferences.json`.
 Preferences and WebView2 user data are retained conservatively.
+
+## Standalone executable
+
+`MusicUnlocker-0.7.0-win64.exe` is a renamed copy of the same normal production
+Wails binary used by the installer and portable ZIP. It is not an NSIS wrapper,
+self-extractor, launcher, UPX-compressed file, or second product. A user can
+download and double-click this EXE directly without installing or extracting
+MusicUnlocker. Normal per-user preferences and WebView2 user data remain in
+their existing locations; nothing is relocated beside the executable.
+
+The standalone executable never invokes the NSIS registration macros. It does
+not create the uninstall key, ProgID, Capabilities, RegisteredApplications,
+OpenWithProgids, or UserChoice state. Windows may pass manually selected
+"Open with" paths to it, and explicit path arguments use the existing Stage 5D
+queue/single-instance flow without starting a batch.
 
 ## File associations
 
@@ -142,7 +163,7 @@ metadata paths remain offline.
 No Fixed Version runtime, custom downloader, unofficial mirror, or TLS bypass
 is included. The current machine already has WebView2, and it was not removed.
 Missing-runtime behavior on a clean machine is
-`CLEAN_MACHINE_WEBVIEW2_TEST_PENDING`.
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`.
 
 ## Portable package
 
@@ -161,6 +182,18 @@ databases, preferences, WebView2 user data, or build caches are packaged.
 Preferences keep their existing per-user Windows configuration location; the
 portable executable does not write them beside itself.
 It does not register file associations on extraction or launch.
+
+## Release directory allowlist and legal assets
+
+After transient ZIP staging is removed, the release script accepts exactly the
+six public files listed above and rejects any directory or unexpected entry.
+The standalone executable is accompanied by separate `LICENSE.txt` and
+`THIRD_PARTY_NOTICES.txt` assets (legal Scheme A). The same legal files remain
+inside the portable ZIP and are installed by NSIS. The notice covers the
+runtime-linked Go modules and bundled React production dependencies under
+MIT, Apache-2.0, BSD-2-Clause, and BSD-3-Clause terms. The official Evergreen
+bootstrapper remains governed by Microsoft's distribution/software terms; no
+Fixed Version runtime or upstream source tree is redistributed.
 
 ## Current validation boundary
 
@@ -182,7 +215,25 @@ retained a controlled unrelated OpenWith value, and reinstall produced 49
 unique association values. No UserChoice key was created or removed, and no
 decoder real-validation status changed.
 
-`CLEAN_MACHINE_WEBVIEW2_TEST_PENDING` and
-`CLEAN_MACHINE_ASSOCIATION_TEST_PENDING` and
-`CROSS_VERSION_UPGRADE_TEST_PENDING` remain open. Stage 8C owns the broader
-clean-machine release-readiness matrix.
+Stage 8C locally rebuilt and allowlist-audited the installer, standalone EXE,
+portable ZIP, top-level legal files, and checksum manifest. After uninstalling
+the installed build, the standalone executable alone launched and closed from
+an unrelated path containing spaces and Japanese characters, rendered its
+frontend/icon, and reported About version `0.7.0`. It generated no adjacent
+files. A separate Unicode/space `.ncm` argument entered the queue, remained
+`Ready`, and created no output directory. Installer-owned registry keys and
+sampled UserChoice keys were absent before and after both launches.
+
+The RC installer passed per-user install, Start Menu, version, 49-association,
+argument queue/idle, and uninstall regression on the development host. The
+portable ZIP retained exactly its documented internal files, launched from a
+separate Unicode/space path, and remained registry-neutral. WebView2
+`151.0.4129.101` was present. This machine is not clean, so
+`CLEAN_MACHINE_CORE_TEST_PENDING`,
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`, and
+`CLEAN_MACHINE_ASSOCIATION_TEST_PENDING` remain. No representative
+Mark-of-the-Web download was used, so `SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING`
+remains. No authentic older installer was available, so
+`CROSS_VERSION_UPGRADE_TEST_PENDING` remains. No real KGM/NCM samples were
+available for a release-artifact decode/Preview smoke; decoder evidence in
+`docs/real-validation.md` is unchanged.

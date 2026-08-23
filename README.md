@@ -41,5 +41,21 @@ Windows release packaging instructions, including the NSIS prerequisite,
 portable ZIP, WebView2 strategy, and checksum workflow, are in
 [`docs/windows-release.md`](docs/windows-release.md).
 
+## Windows distribution options
+
+The `0.7.0` release-candidate workflow produces three Windows x64 application
+forms:
+
+- `MusicUnlocker-Setup-0.7.0-win64.exe` for the integrated per-user install,
+  Start Menu, uninstall, and encrypted-file associations;
+- `MusicUnlocker-0.7.0-win64.exe` as the actual single-file Wails application
+  for direct launch without installing or extracting MusicUnlocker;
+- `MusicUnlocker-0.7.0-win64-portable.zip` as the complete portable archive
+  with release documentation and legal notices.
+
+The standalone and portable forms do not register file associations. All
+three use the same application/version identity and official embedded
+Evergreen WebView2 bootstrapper recovery strategy.
+
 MusicUnlocker is not a streaming client, downloader, cloud service, mandatory
 transcoder, or full music-library manager.

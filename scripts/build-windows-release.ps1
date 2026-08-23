@@ -46,6 +46,21 @@ function New-DeterministicZip {
     } finally { $stream.Dispose() }
 }
 
+function Assert-ArtifactAllowlist {
+    param(
+        [Parameter(Mandatory)][string]$Directory,
+        [Parameter(Mandatory)][string[]]$AllowedNames
+    )
+    $entries = @(Get-ChildItem -LiteralPath $Directory -Force)
+    $unexpected = @($entries | Where-Object { $_.PSIsContainer -or $_.Name -notin $AllowedNames })
+    $missing = @($AllowedNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Directory $_) -PathType Leaf) })
+    if ($unexpected.Count -gt 0 -or $missing.Count -gt 0 -or $entries.Count -ne $AllowedNames.Count) {
+        $unexpectedNames = ($unexpected.Name | Sort-Object) -join ", "
+        $missingNames = ($missing | Sort-Object) -join ", "
+        throw "Release artifact allowlist failed. Unexpected: [$unexpectedNames]. Missing: [$missingNames]."
+    }
+}
+
 Push-Location $repoRoot
 try {
     $worktreeStatus = (& git status --porcelain=v1)
@@ -94,15 +109,27 @@ try {
     New-DeterministicZip -SourceDirectory $stageRoot -Destination $portablePath -Timestamp $commitTimestamp
     Remove-Item -LiteralPath $stageRoot -Recurse -Force
 
-    $outputs = @($portablePath)
+    $standaloneName = "$($release.name)-$($release.version)-win64.exe"
+    $standalonePath = Join-Path $artifactRoot $standaloneName
+    Copy-Item -LiteralPath $binary -Destination $standalonePath
+
+    $licensePath = Join-Path $artifactRoot "LICENSE.txt"
+    $noticePath = Join-Path $artifactRoot "THIRD_PARTY_NOTICES.txt"
+    Copy-Item -LiteralPath (Join-Path $repoRoot "LICENSE") -Destination $licensePath
+    Copy-Item -LiteralPath (Join-Path $repoRoot "THIRD_PARTY_NOTICES.md") -Destination $noticePath
+
+    $outputs = @($standalonePath, $portablePath, $licensePath, $noticePath)
     if (-not $PortableOnly) {
         $installerName = "$($release.name)-Setup-$($release.version)-win64.exe"
         $installerSource = Join-Path $repoRoot "build/bin/$installerName"
         if (-not (Test-Path -LiteralPath $installerSource -PathType Leaf)) { throw "NSIS installer was not produced: $installerSource" }
         $installerPath = Join-Path $artifactRoot $installerName
         Copy-Item -LiteralPath $installerSource -Destination $installerPath
-        $outputs = @($installerPath, $portablePath)
+        $outputs = @($installerPath) + $outputs
     }
+
+    $expectedNames = @($outputs | ForEach-Object { Split-Path -Leaf $_ })
+    Assert-ArtifactAllowlist -Directory $artifactRoot -AllowedNames $expectedNames
 
     $checksumPath = Join-Path $artifactRoot "SHA256SUMS"
     $checksumLines = foreach ($output in $outputs | Sort-Object { Split-Path -Leaf $_ }) {
@@ -110,6 +137,8 @@ try {
         "$hash  $(Split-Path -Leaf $output)"
     }
     [System.IO.File]::WriteAllLines($checksumPath, $checksumLines, [System.Text.UTF8Encoding]::new($false))
+
+    Assert-ArtifactAllowlist -Directory $artifactRoot -AllowedNames ($expectedNames + "SHA256SUMS")
 
     $outputs + $checksumPath | ForEach-Object { Get-Item -LiteralPath $_ | Select-Object Name, Length, LastWriteTimeUtc }
 } finally {
