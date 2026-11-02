@@ -41,14 +41,27 @@ not depend on a hit, and neither `node_modules` nor product outputs are cached.
 `.github/workflows/windows-release.yml` is `workflow_dispatch` only and does
 not cancel a running build for the same ref/tag. Without a tag it checks out
 the repository default branch and only uploads a workflow artifact. With a tag
-it checks out that existing ref and requires the exact convention
-`v<internal/version>`, such as `v0.7.0`; source version constants are never
-rewritten from the tag. A missing version-derived RC note is fatal.
+it checks out the existing ref. The authoritative `internal/version`
+remains `0.7.0` for RC binaries, Windows PE metadata, installer identity, About,
+and filenames. The first RC tag is `v0.7.0-rc.1`; later RCs use
+`v0.7.0-rc.N` (positive integers without leading zeros). The final tag can
+be `v0.7.0`. Other tags fail strict case-sensitive validation. Untagged
+artifact-only builds use `docs/releases/0.7.0-rc.md`; tagged RC builds require
+`docs/releases/0.7.0-rc.N.md`; the eventual final requires
+`docs/releases/0.7.0.md`. Missing notes are fatal. Source version never comes
+from a tag. Tagged builds require the exact tag to identify checkout HEAD; the
+Draft job rechecks matching tag/commit identity.
 
 GitHub enables `workflow_dispatch` only after the workflow exists on the
 repository default branch. Merge the Stage 8D workflows into that branch
 before the first manual Windows release run; pushing only the feature branch
 is not sufficient for final manual-workflow validation.
+
+For the first RC, choose the **master** branch in the Actions "Run workflow"
+branch selector before supplying the existing RC tag. The selected workflow
+revision and its tag checkout are separate identities: do not assume that
+the repository default branch is master or that a tag input selects the
+workflow YAML revision.
 
 The release build uses no build caches and bootstraps Go 1.26.5, Node.js
 24.18.0, npm 11.16.0, Wails v2.15.0, and Chocolatey's exact NSIS 3.12.0 package
@@ -63,8 +76,11 @@ unexpected entries. Only that verified directory is uploaded as
 The build job is read-only with respect to repository contents. Draft Release
 creation is a second, opt-in job with only `contents: write`; it downloads and
 re-verifies the workflow artifact, requires the existing matching tag, uses
-`docs/releases/<version>-rc.md`, refuses to alter a published release or delete
-unexpected assets, and creates/updates a draft with GitHub CLI. It never
+the exact tag-derived release note, refuses to alter a published release or
+delete unexpected assets, and creates/updates a draft with GitHub CLI. RC drafts
+must have `isDraft=true` and `isPrerelease=true`. Any existing release with
+mismatched identity/status is rejected. The workflow never promotes a draft to
+a published/stable/latest release. It never
 publishes, creates, or moves a tag. Fork pull requests can run only the
 unprivileged CI workflow and cannot reach this manual release path.
 

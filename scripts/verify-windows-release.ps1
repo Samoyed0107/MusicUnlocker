@@ -29,14 +29,23 @@ try {
         throw "Release version is missing or is not a supported semantic version"
     }
 
-    $expectedTag = "v$($release.version)"
-    if ($Tag -and $Tag -ne $expectedTag) {
-        throw "Release tag '$Tag' does not match authoritative product version '$($release.version)' (expected '$expectedTag')"
+    # Keep the application version independent of the exact prerelease tag.
+    $expectedStableTag = "v$($release.version)"
+    $releaseNoteRelative = "docs/releases/$($release.version)-rc.md"
+    $isPrerelease = $false
+    if ($Tag) {
+        if ($Tag -ceq $expectedStableTag) {
+            $releaseNoteRelative = "docs/releases/$($release.version).md"
+        } elseif ($Tag -cmatch ('^' + [regex]::Escape($expectedStableTag) + '-rc\.([1-9][0-9]*)$')) {
+            $releaseNoteRelative = "docs/releases/$($release.version)-rc.$($Matches[1]).md"
+            $isPrerelease = $true
+        } else {
+            throw "Release tag '$Tag' does not match authoritative version '$($release.version)' (expected '$expectedStableTag' or -rc.N starting at 1)"
+        }
     }
-
-    $releaseNote = Join-Path $repoRoot "docs/releases/$($release.version)-rc.md"
+    $releaseNote = Join-Path $repoRoot $releaseNoteRelative
     if (-not (Test-Path -LiteralPath $releaseNote -PathType Leaf)) {
-        throw "Release note does not exist for version $($release.version): $releaseNote"
+        throw "Release note does not exist for tag '$Tag': $releaseNoteRelative"
     }
 
     $applicationNames = @(
@@ -95,8 +104,10 @@ try {
         @(
             "name=$($release.name)",
             "version=$($release.version)",
-            "tag=$expectedTag",
-            "release_note=docs/releases/$($release.version)-rc.md",
+            "tag=$Tag",
+            "release_note=$releaseNoteRelative",
+            "prerelease=$($isPrerelease.ToString().ToLowerInvariant())",
+            "commit=$((Invoke-Checked "git" @("rev-parse", "HEAD") | Select-Object -Last 1).Trim())",
             "artifact_name=$($release.name)-$($release.version)-windows-release"
         ) | Add-Content -LiteralPath $GitHubOutput -Encoding utf8
     }
@@ -104,7 +115,8 @@ try {
     [pscustomobject]@{
         Name = $release.name
         Version = $release.version
-        ExpectedTag = $expectedTag
+        ExpectedTag = $(if ($Tag) { $Tag } else { $expectedStableTag })
+        IsPrerelease = $isPrerelease
         ReleaseNote = $releaseNote
         ArtifactsVerified = [bool]$ArtifactDirectory
     }

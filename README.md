@@ -51,7 +51,11 @@ workflow is manual. It builds the authoritative six-file release directory on
 30-day workflow artifact.
 
 Draft GitHub Release creation is an explicit manual option and requires an
-already existing `v<product-version>` tag. The workflow never publishes a
+already existing tag: `v0.7.0-rc.1` for the first RC, later `-rc.N`, or
+`v0.7.0` for the final release after its own note is prepared. RC drafts are
+explicitly marked GitHub prereleases. Product version, PE metadata, and
+artifact filenames remain `0.7.0`; each tagged RC requires its exact
+`docs/releases/0.7.0-rc.N.md` note. The workflow never publishes a
 release, creates or moves a tag, or signs binaries. See
 [`docs/windows-release.md`](docs/windows-release.md) for invocation, permission,
 attestation, signing, and clean-runner evidence boundaries.

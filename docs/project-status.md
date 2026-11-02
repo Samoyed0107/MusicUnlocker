@@ -185,8 +185,11 @@ established Go/frontend checks, and smoke-builds the Windows production app.
 
 `.github/workflows/windows-release.yml` is manual-only and defaults to an
 artifact-only build from the default branch. An optional tag input checks out
-an already existing tag and must equal `v` plus the authoritative
-`internal/version` value. The build job uses `windows-2025`, installs exact
+an already existing tag: the first RC uses `v0.7.0-rc.1`, later RCs use
+`v0.7.0-rc.N` with positive N and no leading zeros, and the future final can
+use `v0.7.0` after its own release note is prepared. Product/PE version,
+About, and artifact filenames remain `0.7.0`. Tagged RCs require the exact
+`docs/releases/0.7.0-rc.N.md` note. The build job uses `windows-2025`,  installs exact
 NSIS 3.12.0, calls `scripts/build-windows-release.ps1`, independently verifies
 the exact six-file directory and every `SHA256SUMS` entry, then uploads only
 that directory for 30 days. It has no repository-content write permission.
@@ -194,8 +197,9 @@ that directory for 30 days. It has no repository-content write permission.
 Draft Release creation is a separate conditional job with `contents: write`.
 It re-downloads and re-verifies the workflow artifact, refuses non-draft
 releases or drafts with unexpected assets, uses the checked-in RC note, and
-only creates or updates a draft for an existing verified tag. Publication is
-always human-controlled. Optional GitHub provenance attestation is wired for
+only creates or updates a draft for an existing verified tag and exact build
+commit. RC drafts are marked GitHub prereleases and remain unpublished.
+Publication is always human-controlled. Optional GitHub provenance attestation is wired for
 the installer, standalone EXE, and portable ZIP, but is off by default because
 repository visibility and account support could not be established locally:
 `ARTIFACT_ATTESTATION_PENDING`. GitHub provenance attestation is not a Windows
