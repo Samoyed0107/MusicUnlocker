@@ -219,11 +219,39 @@ and release construction on a hosted Windows Server VM, not interactive
 Windows 11 installer, Explorer, WebView2 lifecycle, DPI/snap, UAC, or
 SmartScreen behavior.
 
-`DRAFT_RELEASE_REMOTE_TEST_PENDING` and `ARTIFACT_ATTESTATION_PENDING` remain
-because both options were intentionally disabled.
+The later tagged RC1 run `41480338162` completed Draft Release creation.
+RC1 was separately published publicly at `2026-11-06T09:36:33Z`; all six
+published assets passed anonymous download and SHA-256 verification. The
+earlier `DRAFT_RELEASE_REMOTE_TEST_PENDING` is superseded;
+`ARTIFACT_ATTESTATION_PENDING` remains open.
 
 Code signing is `CODE_SIGNING_NOT_CONFIGURED`; current outputs remain
 `UNSIGNED_RELEASE_ARTIFACTS`. An automatic updater is `DEFERRED`.
+
+## RC1 public prerelease and stabilization
+
+The [public MusicUnlocker RC1 Release](https://github.com/Samoyed0107/MusicUnlocker/releases/tag/v0.7.0-rc.1)
+is `PUBLIC / PUBLISHED / PRERELEASE / UNSIGNED`, not stable or latest-stable.
+The immutable `v0.7.0-rc.1` tag points to
+`bf6f8f73bd9feeff0adfe00ae5aa70b37018a635`; documentation-only updates
+to `master` do not alter the RC1 build. The public default branch offers
+English and Simplified Chinese READMEs.
+
+All six released files passed anonymous download and independent SHA-256
+verification. Defender recorded no matching detection in the exact tested
+environment. See [Windows release packaging](windows-release.md) for direct
+installer, standalone, and portable links.
+
+Next comes **RC stabilization**, not new release materialization: public
+feedback and bug triage, browser-download/Mark-of-the-Web/SmartScreen
+observation, clean Windows installation and associations, missing-WebView2
+recovery, and upgrade validation when a predecessor exists. Signing and
+attestation decisions belong before a later stable-release gate.
+`SMARTSCREEN_PUBLIC_BROWSER_TEST_PENDING`, `CLEAN_MACHINE_CORE_TEST_PENDING`,
+`CLEAN_MACHINE_ASSOCIATION_TEST_PENDING`,
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`,
+`CROSS_VERSION_UPGRADE_TEST_PENDING`, and
+`ARTIFACT_ATTESTATION_PENDING` remain open; RC2 is not presumed.
 
 ## Deferred or post-v1
 

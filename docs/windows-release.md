@@ -91,6 +91,41 @@ current status remains `ARTIFACT_ATTESTATION_PENDING`.
 GitHub provenance attestation is not Authenticode and is not a Windows
 publisher code signature.
 
+## Published RC1 and public distribution
+
+The [public repository](https://github.com/Samoyed0107/MusicUnlocker)
+uses default branch `master`. The existing
+[MusicUnlocker 0.7.0 RC 1](https://github.com/Samoyed0107/MusicUnlocker/releases/tag/v0.7.0-rc.1)
+(Release ID `431691311`) was published at `2026-11-06T09:36:33Z` as
+`draft=false`, `prerelease=true`, not stable `v0.7.0`. Its annotated
+`v0.7.0-rc.1` tag still points to
+`bf6f8f73bd9feeff0adfe00ae5aa70b37018a635`. Docs-only commits on
+`master` do not alter this frozen RC1 build.
+
+The published Release provides exactly six assets, including:
+
+- [Windows installer (Setup EXE)](https://github.com/Samoyed0107/MusicUnlocker/releases/download/v0.7.0-rc.1/MusicUnlocker-Setup-0.7.0-win64.exe)
+- [Standalone executable](https://github.com/Samoyed0107/MusicUnlocker/releases/download/v0.7.0-rc.1/MusicUnlocker-0.7.0-win64.exe)
+- [Portable ZIP](https://github.com/Samoyed0107/MusicUnlocker/releases/download/v0.7.0-rc.1/MusicUnlocker-0.7.0-win64-portable.zip)
+- `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`, and
+  [SHA256SUMS](https://github.com/Samoyed0107/MusicUnlocker/releases/download/v0.7.0-rc.1/SHA256SUMS).
+
+Expand **Assets** on the tagged Release detail page. The Actions
+workflow artifact is a separate temporary build distribution surface.
+
+Tagged workflow run `41480338162` passed the release build and Draft
+Release jobs before human-authorized publication. All six public files
+downloaded anonymously and matched frozen sizes and SHA-256 digests.
+The five non-manifest files matched published `SHA256SUMS`. Native
+Defender scanning recorded no matching detection on these exact files
+in that test environment; this is not a universal malware guarantee.
+Installer and standalone remain `NotSigned`, consistent with
+`UNSIGNED_RELEASE_ARTIFACTS` and `CODE_SIGNING_NOT_CONFIGURED`.
+CLI downloads do not validate normal browser Mark-of-the-Web/Explorer
+SmartScreen UX: `SMARTSCREEN_PUBLIC_BROWSER_TEST_PENDING`. Clean-machine
+installation and association, missing WebView2, upgrade, and attestation
+tests remain pending.
+
 ## Release identity and artifacts
 
 `internal/version` remains authoritative for the application name and version.
@@ -307,7 +342,7 @@ remains. No authentic older installer was available, so
 available for a release-artifact decode/Preview smoke; decoder evidence in
 `docs/real-validation.md` is unchanged.
 
-Stage 8D remote validation is recorded:
+Historical Stage 8D artifact-only remote validation is recorded:
 
 - feature-branch CI passed for `codex/stage-8c-v2` at `59b49f0`;
 - master CI passed for `master` at `59b49f0`;
@@ -318,15 +353,19 @@ Stage 8D remote validation is recorded:
 
 This establishes `REMOTE_CI_VALIDATED`, `CLEAN_GITHUB_RUNNER_CI_PASS`,
 `MASTER_CI_PASS`, `CLEAN_GITHUB_RUNNER_BUILD_PASS`, and
-`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. The downloaded artifact hashes are
-commit-specific remote evidence and are not expected to match the earlier
-Stage 8C local build.
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. The downloaded hashes are
+historical commit-specific evidence from `59b49f0`, not the frozen public
+RC1 manifest linked above.
 
 The hosted runner proves a fresh checkout, workflow-bootstrapped toolchain, and
 production artifact construction. It is not an interactive Windows 11
 consumer environment and does not validate Explorer integration, DPI/snap,
 WebView2 GUI lifecycle, consumer UAC behavior, or SmartScreen reputation.
-`DRAFT_RELEASE_REMOTE_TEST_PENDING`, `CLEAN_MACHINE_CORE_TEST_PENDING`,
+The later RC1 Draft job, manual public publication, and anonymous asset
+integrity checks passed; `DRAFT_RELEASE_REMOTE_TEST_PENDING` is superseded.
+Remaining open: `CLEAN_MACHINE_CORE_TEST_PENDING`,
+`CLEAN_MACHINE_ASSOCIATION_TEST_PENDING`,
 `CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`,
-`SMARTSCREEN_PUBLIC_DOWNLOAD_TEST_PENDING`, and
-`CROSS_VERSION_UPGRADE_TEST_PENDING` remain unchanged.
+`SMARTSCREEN_PUBLIC_BROWSER_TEST_PENDING`,
+`CROSS_VERSION_UPGRADE_TEST_PENDING`, and
+`ARTIFACT_ATTESTATION_PENDING`.

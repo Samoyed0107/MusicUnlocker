@@ -1,13 +1,16 @@
 # Project status
 
-This is the fresh-session handoff for the current MusicUnlocker release-candidate branch.
+This is the current public-repository and RC1 post-release status handoff.
 Implementation claims below are based on source and commit history; real-file
 claims are separately recorded in `docs/real-validation.md`.
 
 ## Current baseline
 
-- Branch: `codex/stage-8c-v2` during implementation; integrate by commit rather
-  than treating the branch name as product identity.
+- Public default branch: `master`; the historical implementation branch was
+  `codex/stage-8c-v2`. Branch names are not release identities.
+- RC1's immutable `v0.7.0-rc.1` tag identifies commit
+  `bf6f8f73bd9feeff0adfe00ae5aa70b37018a635`; newer docs-only changes
+  on `master` (including both language READMEs) do not alter RC1.
 - Stage 8A implementation predecessor: `ca740d377a14555b35bb9e766c7eff1bfd1edcf6`
   (`feat: add premium glass desktop polish`). Stage 8A is implemented by the
   commit containing this document.
@@ -30,9 +33,9 @@ claims are separately recorded in `docs/real-validation.md`.
 - Stage 8D CI and Windows Release Automation:
   `ENGINEERING_COMPLETE / CI_AUTOMATED / RELEASE_BUILD_AUTOMATED /
   REMOTE_CI_VALIDATED / GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`.
-  Feature-branch CI, master CI, and a manual artifact-only Windows release
-  runner build have passed. Draft Release mutation and provenance attestation
-  remain intentionally untested.
+  Feature-branch and master CI, a tagged Windows release-runner build, and
+  Draft Release creation passed. RC1 was separately published as a public
+  prerelease with verified anonymous asset downloads. Attestation is pending.
 
 The Stage 7D baseline reconciliation commit changes no production code, tests,
 frontend code, dependencies, or build configuration.
@@ -198,14 +201,13 @@ Draft Release creation is a separate conditional job with `contents: write`.
 It re-downloads and re-verifies the workflow artifact, refuses non-draft
 releases or drafts with unexpected assets, uses the checked-in RC note, and
 only creates or updates a draft for an existing verified tag and exact build
-commit. RC drafts are marked GitHub prereleases and remain unpublished.
-Publication is always human-controlled. Optional GitHub provenance attestation is wired for
-the installer, standalone EXE, and portable ZIP, but is off by default because
-repository visibility and account support could not be established locally:
-`ARTIFACT_ATTESTATION_PENDING`. GitHub provenance attestation is not a Windows
-publisher code signature.
+commit. The workflow creates Draft Prereleases but does not publish them.
+RC1 was later published separately by explicit authorization. Optional
+GitHub provenance attestation for the installer, standalone, and portable
+binaries was not enabled for RC1: `ARTIFACT_ATTESTATION_PENDING`.
+Provenance attestation is not Windows Authenticode signing.
 
-Remote validation evidence is now recorded:
+Historical Stage 8D automation validation evidence is recorded:
 
 - feature branch `codex/stage-8c-v2` at `59b49f0` passed CI;
 - primary branch `master` at `59b49f0` passed CI;
@@ -216,15 +218,15 @@ Remote validation evidence is now recorded:
 
 This justifies `REMOTE_CI_VALIDATED`, `CLEAN_GITHUB_RUNNER_CI_PASS`,
 `MASTER_CI_PASS`, `CLEAN_GITHUB_RUNNER_BUILD_PASS`, and
-`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. It does not justify
-`CLEAN_MACHINE_CORE_VALIDATED`: the hosted runner is not interactive consumer
-Windows validation. `DRAFT_RELEASE_REMOTE_TEST_PENDING` and
-`ARTIFACT_ATTESTATION_PENDING` remain. The current boundary also remains
-`CODE_SIGNING_NOT_CONFIGURED` and `UNSIGNED_RELEASE_ARTIFACTS`. Future signing
-must occur after build but before final hashing: build, sign EXEs, verify
-signatures, regenerate final `SHA256SUMS`, then upload/publish.
+`GITHUB_RUNNER_RELEASE_BUILD_VALIDATED`. The hosted runner is not an interactive
+consumer Windows validation environment. Tagged RC1 Draft creation and
+separate public publication are verified, superseding
+`DRAFT_RELEASE_REMOTE_TEST_PENDING`. `ARTIFACT_ATTESTATION_PENDING`,
+`CODE_SIGNING_NOT_CONFIGURED`, and `UNSIGNED_RELEASE_ARTIFACTS` remain.
+Future signing must precede final hashing: build, sign, verify, regenerate
+`SHA256SUMS`, then upload and publish.
 
-Downloaded artifact manifest evidence:
+Historical Stage 8D artifact-only manifest at `59b49f0` (not the published RC1 hashes):
 
 ```text
 ca0823e35b5de5df2dc468132a1273dfd07aceb1d7df86a341f57e895b577650  LICENSE.txt
@@ -234,8 +236,33 @@ ca0823e35b5de5df2dc468132a1273dfd07aceb1d7df86a341f57e895b577650  LICENSE.txt
 3e450b04a1b0110fe3f204542ea97c20b6f3ce42762bcd09253062d2f325b71f  THIRD_PARTY_NOTICES.txt
 ```
 
-These hashes belong to the remote workflow artifact at this commit and are
-not expected to match the earlier Stage 8C local build.
+These hashes belong to the earlier Stage 8D workflow artifact, not the
+frozen public RC1 Release assets. The public manifest is linked below.
+
+### Public RC1 publication and verification
+
+- Repository [Samoyed0107/MusicUnlocker](https://github.com/Samoyed0107/MusicUnlocker): `Public`, default `master`.
+- Annotated tag `v0.7.0-rc.1` (object `08065ae42a2a604816b7c29ba2978aa2242892c7`)
+  still resolves to the frozen build commit `bf6f8f73bd9feeff0adfe00ae5aa70b37018a635`.
+- [MusicUnlocker 0.7.0 RC 1](https://github.com/Samoyed0107/MusicUnlocker/releases/tag/v0.7.0-rc.1)
+  (ID `431691311`) was published at `2026-11-06T09:36:33Z` as
+  `draft=false`, `prerelease=true`, not stable `v0.7.0`.
+- Tagged workflow run `41480338162` completed the build and Draft jobs.
+  The Release contains exactly six assets: installer, standalone, portable,
+  `LICENSE.txt`, `THIRD_PARTY_NOTICES.txt`, and
+  [SHA256SUMS](https://github.com/Samoyed0107/MusicUnlocker/releases/download/v0.7.0-rc.1/SHA256SUMS).
+- All six public assets downloaded anonymously, matching frozen sizes and
+  SHA-256 digests; the five non-manifest files matched `SHA256SUMS`. Defender
+  reported no matching detection for exact downloads in the tested environment,
+  not a universal malware-safety guarantee.
+- Installer and standalone binaries were `NotSigned`. CLI downloads do not
+  validate normal browser/Explorer Mark-of-the-Web or SmartScreen behavior.
+
+Open: `SMARTSCREEN_PUBLIC_BROWSER_TEST_PENDING`,
+`CLEAN_MACHINE_CORE_TEST_PENDING`, `CLEAN_MACHINE_ASSOCIATION_TEST_PENDING`,
+`CLEAN_MACHINE_WEBVIEW2_MISSING_TEST_PENDING`,
+`CROSS_VERSION_UPGRADE_TEST_PENDING`, and `ARTIFACT_ATTESTATION_PENDING`.
+Decoder real-file validation remains unchanged.
 
 ## Current architecture
 
@@ -328,7 +355,8 @@ current mainline stages.
 
 ## Next work
 
-`docs/roadmap.md` is the sole current implementation roadmap. Stage 8D
-engineering is complete locally. Remote CI/release-workflow execution and the
-clean-machine, missing-WebView2, SmartScreen, cross-version-upgrade, Stage 7D
-environment, and real release-smoke evidence listed above remain pending.
+`docs/roadmap.md` is the sole current implementation roadmap. RC1 public
+publication is complete; next comes RC stabilization: browser/Explorer
+SmartScreen observation, user feedback, clean-machine, missing-WebView2,
+cross-version upgrade, remaining Stage 7D environment, and real
+release-smoke evidence. No RC2 or stable release is implied.
