@@ -1,5 +1,7 @@
 # MusicUnlocker
 
+**English** | [简体中文](README.zh-CN.md)
+
 MusicUnlocker is a Windows 11 x64-first desktop utility for decoding supported
 encrypted music files locally. It uses a shared Go core with a Wails v2 and
 React/TypeScript desktop frontend; the same probe, decode, batch, naming, and
